@@ -1,0 +1,21 @@
+# Bauartefakte
+.build/
+.build-x86/
+.swiftpm/
+*.xcodeproj
+dist/
+
+# Website
+web/node_modules/
+web/dist/
+
+# Auslieferpakete gehören zu den GitHub-Releases, nicht in die Historie:
+# Jede Fassung liegt sonst für immer als 4-MB-Blob im Verlauf.
+web/public/download/*.dmg
+web/public/download/*.sha256
+
+# macOS
+.DS_Store
+
+# TypeScript-Zwischenstand
+web/*.tsbuildinfo
