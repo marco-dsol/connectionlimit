@@ -7,7 +7,7 @@ import Foundation
 /// gewollt. Für Mail oder Browser ist es grob — die UI weist darauf hin.
 ///
 /// Ohne Entitlement gibt es auf macOS keinen Userland-Weg, einer App nur das
-/// Netz zu entziehen. Siehe `.knowledgebase/01-macos-technik.md`, Abschnitt C.
+/// Netz zu entziehen.
 public final class ProcessFreezeEnforcer: Enforcer {
     public let kind: LeverKind = .processFreeze
     public init() {}

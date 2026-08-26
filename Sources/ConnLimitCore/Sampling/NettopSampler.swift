@@ -8,7 +8,7 @@ import Foundation
 ///   -L 1 genau ein Sample, dann beenden
 ///   -t  Interface-Typ — **immer setzen**: ungefiltert zählt Traffic bei
 ///       aktivem VPN doppelt (einmal auf utun*, einmal auf dem physischen
-///       Interface). Siehe .knowledgebase/05-roadmap.md, Punkt 5.
+///       Interface).
 public struct NettopSampler {
     public var nettopPath: String
     public var linkType: LinkType

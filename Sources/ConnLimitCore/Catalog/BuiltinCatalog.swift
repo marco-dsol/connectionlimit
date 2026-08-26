@@ -1,7 +1,6 @@
 import Foundation
 
-/// Mitgelieferter Dienstkatalog. Dokumentiert in
-/// `.knowledgebase/04-dienstkatalog.md`.
+/// Mitgelieferter Dienstkatalog.
 ///
 /// Ergänzungen des Nutzers kommen aus
 /// `~/Library/Application Support/at.mitsol.connectionlimit/catalog.json`

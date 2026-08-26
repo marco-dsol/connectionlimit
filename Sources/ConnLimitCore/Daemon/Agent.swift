@@ -2,7 +2,7 @@ import Foundation
 
 /// Der Hintergrunddienst: misst, bewertet, setzt durch.
 ///
-/// Taktung (siehe `.knowledgebase/03-architektur.md`):
+/// Taktung:
 ///   alle 2 s   Sampling
 ///   alle 10 s  Netzwechsel prüfen
 ///   alle 30 s  Timer abarbeiten

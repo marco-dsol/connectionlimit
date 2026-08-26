@@ -243,7 +243,7 @@ func cmdDoctor(_ args: Args) throws {
           receipts.isEmpty ? "keine" : "\(receipts.count) — 'connlimit status' zeigt sie")
 
     print()
-    print(Term.dim("Grenzen dieses Werkzeugs sind in .knowledgebase/01-macos-technik.md beschrieben."))
+    print(Term.dim("Was welcher Hebel wirklich tut, steht in der README."))
 }
 
 // MARK: - PF-Installation

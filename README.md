@@ -1,13 +1,13 @@
 # ConnectionLimit
 
-Sehen, wer auf dem Mac Datenvolumen verbraucht — und es gezielt abdrehen.
-Gebaut für die Situation, in der Volumen knapp ist: Hotspot, Roaming, Hotel-Tarif.
+See who is burning through your data on a Mac — and shut them off.
+Built for the situation where data is scarce: hotspot, roaming, hotel tariff.
 
-macOS zeigt keinen Verbrauch pro App und hat keinen Low-Data-Modus wie iOS.
-Dieses Werkzeug schließt beide Lücken, soweit das ohne Apple-Sonderrechte geht —
-und sagt klar, wo die Grenze verläuft.
+macOS shows no per-app usage and has no Low Data Mode like iOS. This tool
+closes both gaps as far as that is possible without Apple entitlements — and
+says plainly where the limit runs.
 
-![Das Fenster](web/public/screenshots/verbrauch.png)
+![The window](web/public/screenshots/verbrauch.png)
 
 ```
 $ connlimit tracked
@@ -23,261 +23,263 @@ Getrackte Dienste  ·  seit 25.08. 17:01  ·  Netz: iPhone von Marco [teuer]
   macOS Update          Updates        29.0 MB       —  vor 39 min ▁▁·········
 ```
 
-## Die Idee
+The interface and the source comments are in German; this document is not.
 
-**Nicht der Nutzer erklärt der App, dass Urlaub ist — das Netz sagt es.**
+## The idea
 
-Jedes Netz wird an der MAC-Adresse seines Routers wiedererkannt (dafür braucht
-es keine Ortungsdienste, anders als beim Auslesen der SSID) und einmalig als
-*frei*, *teuer* oder *begrenzt* eingestuft. Am iPhone-Hotspot greift dann
-automatisch der Urlaubsmodus, im Heim-WLAN fällt er von selbst wieder weg.
-Genau dort passieren sonst die teuren Fehler: das Einschalten bei Ankunft
-vergessen, das Ausschalten bei Rückkehr auch.
+**You don't tell the app you're travelling — the network does.**
 
-Vier Eskalationsstufen sperren nicht einzelne Apps, sondern **Klassen** — so
-greifen sie auch für Dienste, die es beim Anlegen des Profils noch nicht gab:
+Every network is recognised by the MAC address of its router (no location
+services needed, unlike reading the SSID) and classified once as *free*,
+*metered* or *limited*. At the iPhone hotspot the vacation profile kicks in by
+itself, and at home it falls away again on its own. That is exactly where the
+expensive mistakes happen otherwise: forgetting to switch it on when you
+arrive, forgetting to switch it off when you get back.
 
-| Stufe | sperrt ab Werk |
+Four escalation tiers block **classes**, not individual apps — so they also
+cover services that didn't exist when the profile was written:
+
+| Tier | blocks by default |
 |---|---|
-| **Aus** | nichts |
-| **Sparsam** | Updates, Backups, Telemetrie, Medien — kostet keinen Komfort |
-| **Urlaubsmodus** | zusätzlich Cloud-Sync (iCloud, OneDrive, Dropbox, Nextcloud) |
-| **Notfall** | zusätzlich E-Mail und Browser |
+| **Off** | nothing |
+| **Frugal** | updates, backups, telemetry, media — costs you no comfort |
+| **Vacation** | plus cloud sync (iCloud, OneDrive, Dropbox, Nextcloud) |
+| **Emergency** | plus mail and browsers |
 
-Welche Klassen eine Stufe sperrt, ist **einstellbar** — im Bereich *Profile*
-oder mit `connlimit profile edit`. Die Tabelle oben ist die Voreinstellung,
-kein Gesetz. Nur zwei Dinge sind nicht verhandelbar: „Aus“ sperrt nichts, und
-die Klasse `essential` (VPN, DNS, Push, das Werkzeug selbst) ist hart gegen
-jede Sperre geschützt — auch gegen die eigene Automatik.
+Which classes a tier blocks is **configurable** — in the *Profile* section of
+the window or with `connlimit profile edit`. The table above is the default,
+not a law. Only two things are non-negotiable: "Off" blocks nothing, and the
+`essential` class (VPN, DNS, push, the tool itself) is hard-protected against
+every block, including its own automation.
 
-## Die Liste bleibt stehen
+## The list stays
 
-Wer einmal Daten gebraucht hat, bleibt in der Liste — bis du zurücksetzt.
+Whatever once used data stays in the list — until you reset it.
 
-Das klingt nach einer Kleinigkeit, ist aber der Unterschied zwischen „was läuft
-gerade?“ und „wer kostet mich Geld?“. Ein Sync-Client, der alle zwanzig Minuten
-für zehn Sekunden 40 MB hochlädt, ist in einer Momentaufnahme fast nie zu
-sehen — und genau ihn will man sperren. Deshalb:
+That sounds like a detail, but it is the difference between "what is running
+right now?" and "who is costing me money?". A sync client that uploads 40 MB
+for ten seconds every twenty minutes is almost never visible in a snapshot —
+and it is precisely the one you want to block. Hence:
 
-- **Dauerbeobachtung** — jeder je gesehene Dienst steht in der Liste, mit
-  Gesamtmenge, Tagesmenge und dem Zeitpunkt der letzten Aktivität. Gerade
-  aktive stehen oben und sind **grün**.
-- **Mengenverlauf** — Stunden- und Tagesfenster je Dienst. Stille Fenster
-  stehen als Null da, statt zu fehlen: Sonst sähe Ruhe aus wie schwacher
-  Verkehr.
-- **Protokoll** — wann gesperrt, wann freigegeben, und wann trotz gesetzter
-  Sperre Daten geflossen sind. Mit Beginn, Ende und Menge.
+- **Persistent tracking** — every service ever seen stays listed, with total
+  volume, today's volume and the time of its last activity. Currently active
+  ones sort to the top and are **green**.
+- **Volume over time** — hourly and daily buckets per service. Quiet buckets
+  are shown as zero rather than skipped: otherwise silence would look like
+  light traffic.
+- **Log** — when something was blocked, when it was released, and when data
+  flowed *despite* a block being in place. With start, end and volume.
 
-Der letzte Punkt ist der wichtigste. Ob hinter durchgekommenen Bytes ein echter
-Verbindungsversuch steckt, lässt sich ohne Netzwerkfilter nicht sagen — messbar
-ist, dass Bytes gezählt wurden, während die Sperre stand. Genau das wird
-festgehalten, nicht mehr. Eine Sperre, durch die etwas durchkommt, ist
-schlimmer als keine, weil man sich auf sie verlässt.
+The last point matters most. Whether bytes that got through were a real
+connection attempt cannot be determined without a network filter — what is
+measurable is that bytes were counted while the block was standing. That, and
+nothing more, is what gets recorded. A block that leaks is worse than no block,
+because you rely on it.
 
-Farben bedeuten überall dasselbe, in Fenster, Menü und Terminal:
+Colours mean the same thing everywhere — window, menu bar and terminal:
 
 | | |
 |---|---|
-| **grün** | bewegt gerade Daten |
-| **rot** | gesperrt |
-| **orange** | gesperrt, und trotzdem fließt etwas |
-| **grau** | bekannt, aber still |
+| **green** | moving data right now |
+| **red** | blocked |
+| **orange** | blocked, and data is flowing anyway |
+| **grey** | known, but quiet |
 
-## Bauen
+## Building
 
-Voraussetzung: macOS 14+, Swift 6. Xcode wird **nicht** gebraucht.
+Requires macOS 14+ and Swift 6. Xcode is **not** needed.
 
 ```bash
 swift build -c release              # CLI
-./Tools/make-app-bundle.sh          # Menüleisten-App nach dist/
-swift run connlimit-selftest        # Prüfsuite (129 Prüfungen)
+./Tools/make-app-bundle.sh          # menu bar app into dist/
+swift run connlimit-selftest        # test suite (129 checks)
 ```
 
-`Tools/make-app-bundle.sh` setzt das `.app`-Bundle von Hand zusammen, zeichnet
-das Symbol (`Tools/make-icon.swift`) und signiert ad hoc — ohne Xcode gibt es
-kein App-Target, das das übernimmt.
+`Tools/make-app-bundle.sh` assembles the `.app` bundle by hand, draws the icon
+(`Tools/make-icon.swift`) and signs it — with your Developer ID if one is in
+the keychain, ad hoc otherwise. Without Xcode there is no app target to do
+this for you.
 
-## Installieren
+The test suite runs as a standalone program rather than under XCTest: both
+test frameworks require a full Xcode install, and only the Command Line Tools
+are assumed here.
+
+## Installing
 
 ```bash
 ./Tools/install.sh
 ```
 
-Baut, legt die App nach `/Applications`, verknüpft `connlimit` in den ersten
-beschreibbaren PATH-Ordner (`~/.local/bin`, sonst Homebrew) und richtet einen
-LaunchAgent ein. Kein `sudo`.
+Builds, puts the app into `/Applications`, links `connlimit` into the first
+writable directory on your `PATH` (`~/.local/bin`, else Homebrew), and sets up
+a LaunchAgent. No `sudo`.
 
-Der Autostart ist kein Beiwerk: **Gemessen wird nur, solange das Programm
-läuft.** Ohne ihn fehlt jedes Mal die Zeit zwischen Anmelden und erstem Klick —
-und genau dann laden Updates und Sync-Clients am liebsten. Wer ihn nicht will:
-`CONNLIMIT_NO_AUTOSTART=1 ./Tools/install.sh`. Der LaunchAgent setzt bewusst
-kein `KeepAlive` — „Beenden“ im Menü muss beenden heißen.
+The autostart is not a nicety: **measurement only happens while the program is
+running.** Without it you lose the stretch between login and your first click
+every single day — which is exactly when updates and sync clients like to
+fetch. If you don't want it: `CONNLIMIT_NO_AUTOSTART=1 ./Tools/install.sh`.
+The LaunchAgent deliberately sets no `KeepAlive` — "Quit" in the menu has to
+mean quit.
 
-`./Tools/make-download.sh` baut stattdessen ein Universal-Programm (Apple
-Silicon und Intel) als DMG nach `web/public/download/` — das ist das Paket, das
-die Website anbietet. Universal geht nur von Hand: `swift build --arch arm64
---arch x86_64` verlangt ein vollständiges Xcode, das Übersetzen für die jeweils
-andere Architektur einzeln nicht — `lipo` fügt die Fassungen danach zusammen.
-Version, Größe und Prüfsumme schreibt das Skript nach
-`web/src/lib/build-info.json`; die Website liest sie von dort, damit sie nicht
-irgendwann etwas anderes behauptet als die Datei, die sie ausliefert.
+`./Tools/uninstall.sh` reverses everything: it lifts all blocks first, then
+removes autostart, app and symlink. Measurement data is kept unless you set
+`CONNLIMIT_KEEP_DATA=0`.
 
-### Signieren und notarisieren
+### Distributable package
 
-Ohne Zertifikat wird ad hoc signiert — dann lehnt Gatekeeper den ersten
-Doppelklick ab, und die Website erklärt den Umweg über das Kontextmenü. Mit
-einem Developer-ID-Zertifikat entfällt beides. Die Notarisierung selbst kostet
-nichts extra; sie ist in der Mitgliedschaft im Apple Developer Program
-enthalten.
+`./Tools/make-download.sh` builds a universal binary (Apple Silicon and Intel)
+as a DMG into `web/public/download/` — the package the website offers. Universal
+has to be done by hand: `swift build --arch arm64 --arch x86_64` requires a full
+Xcode, while cross-compiling for the other architecture on its own does not —
+`lipo` merges the two afterwards. Version, size and checksum are written to
+`web/src/lib/build-info.json`, which the website reads, so that it can never
+claim something different from the file it serves.
+
+### Signing and notarising
+
+Without a certificate the build is signed ad hoc — Gatekeeper then refuses the
+first double-click, and the website explains the detour through the context
+menu. With a Developer ID certificate both go away. Notarisation itself costs
+nothing extra; it is included in the Apple Developer Program membership.
 
 ```bash
-# einmalig: Zugangsdaten in den Schlüsselbund (fragt das app-spezifische
-# Passwort interaktiv ab, es landet nicht in der Verlaufsdatei der Shell)
+# once: store credentials in the keychain (prompts for the app-specific
+# password interactively, so it never lands in your shell history)
 xcrun notarytool store-credentials connectionlimit \
   --apple-id <apple-id> --team-id <team-id>
 
 CONNLIMIT_NOTARY_PROFILE=connectionlimit ./Tools/make-download.sh
 ```
 
-Das Skript signiert dann mit Hardened Runtime und Zeitstempel, reicht Programm
-und Abbild einzeln ein, heftet beide Tickets an und trägt `notarized: true` in
-die Bauangaben ein. Damit verschwindet der Gatekeeper-Schritt von der Website
-von selbst — behaupten kann sie es nicht, sie liest es aus dem Bau.
+The script then signs with hardened runtime and a timestamp, submits app and
+disk image separately, staples both tickets and records `notarized: true` in
+the build info. The Gatekeeper step disappears from the website by itself — it
+cannot claim notarisation, it reads it from the build.
 
-Das Zertifikat wird nicht gesucht, sondern gefunden: Ohne
-`CONNLIMIT_SIGN_IDENTITY` nimmt das Skript das erste
-„Developer ID Application“ aus dem Schlüsselbund.
+The certificate is found rather than configured: without
+`CONNLIMIT_SIGN_IDENTITY` the script picks the first "Developer ID
+Application" from the keychain.
 
-Alles rückgängig macht `./Tools/uninstall.sh`: hebt zuerst alle Sperren auf,
-entfernt dann Autostart, App und Verknüpfung. Die Messdaten bleiben, sofern
-nicht `CONNLIMIT_KEEP_DATA=0` gesetzt ist.
-
-## Loslegen
+## Getting started
 
 ```bash
-connlimit doctor                    # Was ist auf diesem Mac verfügbar?
-connlimit net set current teuer     # Aktuelles Netz einstufen
+connlimit doctor                    # what is available on this Mac?
+connlimit net set current teuer     # classify the current network
 connlimit budget set 5GB --until 2026-09-06
-connlimit run -v                    # Hintergrunddienst starten
+connlimit run -v                    # start the background service
 ```
 
-Solange ein Netz **nicht eingestuft** ist, sperrt das Werkzeug bewusst nichts.
-Beim ersten Start ist auch das Heim-WLAN unbekannt; dort ungefragt Dienste
-einzufrieren wäre die falsche Art Überraschung.
+As long as a network is **unclassified**, the tool deliberately blocks nothing.
+On first launch your home Wi-Fi is unknown too; freezing services there
+unasked would be the wrong kind of surprise.
 
-## Befehle
+## Commands
 
 | | |
 |---|---|
-| `tracked [--active] [--limit 30]` | Dauerliste: jeder Dienst, der je Daten brauchte |
-| `top [--since 1h\|today\|7d] [--metered]` | Verbrauch pro Dienst im Zeitraum |
-| `watch` | Live-Ansicht, wer gerade sendet |
-| `history <dienst> [--since 24h] [--bucket 1h]` | Mengenverlauf über die Zeit |
-| `events [<dienst>] [--attempts]` | Protokoll: Sperren, Freigaben, Durchbrüche |
-| `status` | Netz, Profil, Budget, aktive Sperren |
-| `services [--class sync]` | Dienstkatalog mit den jeweiligen Hebeln |
-| `block <dienst> [--for 30m]` | Sperren, wahlweise befristet |
-| `allow <dienst> [--for 30m]` | Freigeben; mit `--for` läuft die Freigabe ab |
-| `unblock-all` | Not-Aus |
-| `profile <aus\|sparsam\|urlaub\|notfall\|auto>` | Stufe setzen |
-| `profile edit <stufe> <klassen…>` | Festlegen, was eine Stufe sperrt |
-| `except <allow\|block\|clear> <dienst>` | Dauerhafte Ausnahme vom Profil |
-| `reset <dienst> \| --all` | Dauerliste zurücksetzen |
-| `net [list\|set\|name]` | Netze einstufen und benennen |
-| `budget [show\|set\|clear]` | Reisebudget |
-| `run [--read-only] [-v]` | Hintergrunddienst |
-| `doctor` | Verfügbarkeitsprüfung |
+| `tracked [--active] [--limit 30]` | the persistent list: everything that ever used data |
+| `top [--since 1h\|today\|7d] [--metered]` | usage per service over a period |
+| `watch` | live view of who is sending right now |
+| `history <service> [--since 24h] [--bucket 1h]` | volume over time |
+| `events [<service>] [--attempts]` | log: blocks, releases, leaks |
+| `status` | network, profile, budget, active blocks |
+| `services [--class sync]` | service catalogue with the available levers |
+| `block <service> [--for 30m]` | block, optionally with a timer |
+| `allow <service> [--for 30m]` | release; with `--for` the release expires |
+| `unblock-all` | emergency stop |
+| `profile <aus\|sparsam\|urlaub\|notfall\|auto>` | set the tier |
+| `profile edit <tier> <classes…>` | define what a tier blocks |
+| `except <allow\|block\|clear> <service>` | permanent exception from the profile |
+| `reset <service> \| --all` | reset the persistent list |
+| `net [list\|set\|name]` | classify and name networks |
+| `budget [show\|set\|clear]` | travel budget |
+| `run [--read-only] [-v]` | background service |
+| `doctor` | availability check |
 
-Der nützlichste Griff im Alltag ist `allow <dienst> --for 30m`: der Dienst wird
-für ein Zeitfenster freigegeben und danach automatisch wieder gesperrt. Danach
-zeigt das Werkzeug, was die Freigabe gekostet hat — *„Dropbox: 240 MB in 30
-Minuten"*. Diese Rückmeldung ist der eigentliche Lerneffekt.
+The most useful move in daily life is `allow <service> --for 30m`: the service
+is released for a window and blocked again automatically afterwards. The tool
+then reports what the release cost you — *"Dropbox: 240 MB in 30 minutes"*.
+That feedback is where the actual learning happens.
 
-## Was es kann — und was nicht
+## What it can do — and what it can't
 
-Gemessen wird über `nettop`. Das liefert Byte-Zähler pro Prozess ohne
-Sonderrechte, ist aber ein **Stichprobenverfahren**: Prozesse, die zwischen
-zwei Messungen entstehen und vergehen, fehlen. Die Zahlen sind gute Schätzungen,
-keine Abrechnung.
+Measurement goes through `nettop`. That gives per-process byte counters without
+special privileges, but it is a **sampling method**: processes that appear and
+disappear between two samples are missed. The numbers are good estimates, not
+billing records.
 
-Beim Sperren wird es unangenehmer. macOS bietet ohne Apple-Entitlement **keinen**
-Weg, einer einzelnen App nur das Netz zu entziehen. Deshalb gestaffelte Hebel:
+Blocking gets more uncomfortable. Without an Apple entitlement, macOS offers
+**no** way to take the network away from a single app. Hence the graduated
+levers:
 
-| Hebel | Wirkung | Rechte |
+| Lever | Effect | Privileges |
 |---|---|---|
-| **Systemdienst anhalten** | `launchctl kill SIGSTOP` — sauber, vollständig reversibel, stoppt das Volumen an der Quelle | root |
-| **Ziel-Adressen sperren** | eigener PF-Anchor; die App bleibt bedienbar, aber CDN-Adressen können ausweichen | root + `install-pf` |
-| **App einfrieren** | `SIGSTOP` — friert die **ganze** App ein, nicht nur ihr Netz | keine |
+| **Pause system service** | `launchctl kill SIGSTOP` — clean, fully reversible, stops the volume at the source | root |
+| **Block destination addresses** | own PF anchor; the app stays usable, but CDN addresses can move | root + `install-pf` |
+| **Freeze app** | `SIGSTOP` — freezes the **whole** app, not just its network | none |
 
-Für reine Sync-Clients ist Einfrieren genau das Gewünschte. Für Mail oder
-Browser ist es grob; die Oberfläche schreibt das an jede betroffene Zeile.
+For pure sync clients, freezing is exactly what you want. For mail or browsers
+it is blunt, and the interface says so on every affected row.
 
-**Ohne `sudo` bleibt nur der letzte Hebel.** Dienste, deren Hebel alle root
-brauchen — macOS-Update, iCloud, Time Machine — laufen dann trotz aktivem
-Profil weiter. Das Werkzeug meldet das ausdrücklich, statt „Urlaubsmodus aktiv"
-anzuzeigen, während die größten Posten munter weiterladen.
+**Without `sudo` only the last lever remains.** Services whose levers all need
+root — macOS updates, iCloud, Time Machine — keep running despite an active
+profile. The tool reports that explicitly instead of displaying "vacation mode
+active" while the biggest consumers merrily download.
 
-Echtes Blocken pro App ginge mit einem `NEFilterDataProvider` als System
-Extension. Das verlangt Apple Developer Program, ein von Apple freizugebendes
-Entitlement und Xcode. Die Architektur hält den Platz dafür frei (`Enforcer`-
-Protokoll), umgesetzt ist es nicht.
+Real per-app blocking would need a `NEFilterDataProvider` as a system
+extension. That requires the Apple Developer Program, an entitlement Apple has
+to grant, and Xcode. The architecture keeps the seat warm for it (the
+`Enforcer` protocol); it is not implemented.
 
-## Sicherheitsnetz
+## Safety net
 
-Eine App mit diesen Befugnissen darf keine Spuren hinterlassen:
+An app with these powers must not leave anything behind:
 
-- Jede Sperre bekommt eine **Quittung in der Datenbank, bevor** sie gesetzt wird.
-  Ein Absturz dazwischen hinterlässt eine wirkungslose Quittung — harmlos.
-  Andersherum bliebe eine eingefrorene App ohne jede Spur zurück.
-- **Nie den eigenen Prozess oder einen seiner Vorfahren einfrieren.** Wird das
-  Werkzeug aus einem Terminal heraus bedient, ist dieses Terminal ein Vorfahre —
-  und ein eingefrorenes Terminal kann den Befehl zum Auftauen nicht mehr
-  absetzen. Die Sperre wäre endgültig.
-- Beim Start räumt die Wiederherstellung auf: abgelaufene Timer, tote Prozesse,
-  Regeln aus einem anderen Netz. **Im Zweifel wird freigegeben.**
-- Beim Beenden fallen alle Profil-Sperren. Manuelle Sperren bleiben — die hat
-  der Nutzer bewusst gesetzt.
-- PF-Regeln liegen in einem eigenen Anchor; `/etc/pf.conf` wird vor der Änderung
-  gesichert, `uninstall-pf` stellt den Ausgangszustand wieder her.
-- `connlimit unblock-all` hebt alles auf, unabhängig vom Zustand der Datenbank.
-- Ein Reset der Dauerliste löscht **keine** Messdaten — daran hängt das Budget.
+- Every block gets a **receipt in the database before** it is applied. A crash
+  in between leaves an ineffective receipt — harmless. The other way round
+  would leave a frozen app with no trace of it.
+- **Never freeze your own process or one of its ancestors.** If the tool is
+  driven from a terminal, that terminal is an ancestor — and a frozen terminal
+  cannot issue the command to thaw it again. The block would be permanent.
+- On startup, recovery cleans up: expired timers, dead processes, rules from a
+  different network. **When in doubt, release.**
+- On exit all profile blocks are lifted. Manual blocks stay — the user set
+  those deliberately.
+- PF rules live in their own anchor; `/etc/pf.conf` is backed up before it is
+  touched, and `uninstall-pf` restores the original state.
+- `connlimit unblock-all` lifts everything regardless of what the database
+  thinks.
+- Resetting the persistent list deletes **no** measurement data — the budget
+  depends on it.
 
-## Aufbau
+## Layout
 
 ```
 Sources/
-  ConnLimitCore/       Sampling · Katalog · Netzerkennung · Policy · Enforcement · Store
-  connlimit/           CLI
-  ConnectionLimitApp/  SwiftUI-Menüleiste und Fenster
-  selftest/            Prüfsuite als eigenes Programm
-Tools/                 Bauen, installieren, Symbol zeichnen, Bildschirmfotos aufnehmen
-web/                   Website (Vite + React)
-.knowledgebase/        Konzept, Technik-Recherche, Dienstkatalog, Roadmap
+  ConnLimitCore/       sampling · catalogue · network identity · policy · enforcement · store
+  connlimit/           command line
+  ConnectionLimitApp/  SwiftUI menu bar and window
+  selftest/            test suite as its own program
+Tools/                 build, install, draw the icon, take screenshots
+web/                   website (Vite + React)
 ```
 
-Die Prüfsuite läuft als eigenständiges Programm statt unter XCTest: beide
-Test-Frameworks setzen ein vollständiges Xcode voraus, hier sind nur die
-Command Line Tools installiert.
-
-Daten liegen unter
-`~/Library/Application Support/at.mitsol.connectionlimit/` — `connlimit.db`
-(SQLite) und die optionale `catalog.json` für eigene Diensteinträge.
+Data lives in `~/Library/Application Support/at.mitsol.connectionlimit/` —
+`connlimit.db` (SQLite) and the optional `catalog.json` for your own service
+definitions.
 
 ## Website
 
 ```bash
 cd web
 npm install
-npm run dev        # Entwicklung
-npm run build      # nach web/dist/
+npm run dev        # development
+npm run build      # into web/dist/
 ```
 
-Die Seite baut die Oberfläche als echtes Markup nach und spielt in Bewegung
-durch, was das Werkzeug tut — dazu die Bildschirmfotos aus `Tools/make-screenshots.sh`.
+The site rebuilds the interface as real markup and plays through what the tool
+does, alongside the screenshots produced by `Tools/make-screenshots.sh`.
 
-Hintergrund, Begründungen und die vollständige Liste der technischen Grenzen:
-**[.knowledgebase/](.knowledgebase/)**
+## Licence
 
-## Lizenz
-
-MIT — siehe [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

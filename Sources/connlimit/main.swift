@@ -36,7 +36,7 @@ let usage = """
   doctor                      Prüft, welche Hebel auf diesem Mac verfügbar sind
   install-pf / uninstall-pf   PF-Anchor für Domain-Sperren (root)
 
-\(Term.dim("Konzept und Grenzen: .knowledgebase/"))
+\(Term.dim("Konzept und Grenzen: README.md"))
 """
 
 let raw = Array(CommandLine.arguments.dropFirst())
