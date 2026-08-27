@@ -106,6 +106,21 @@ are assumed here.
 
 ## Installing
 
+On a Mac without a checkout — a second machine, say — take the released build:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mitsol/connectionlimit/main/Tools/install-release.sh | bash
+```
+
+That fetches the latest release, puts the app into `/Applications`, links
+`connlimit` onto your `PATH` and sets up the autostart. No Xcode, no Swift, no
+`sudo`. If you'd rather not pipe a script into a shell — fair — download the
+DMG from the [releases page](https://github.com/mitsol/connectionlimit/releases),
+drag the app into Programme and double-click it. It is notarised, so that just
+works; you then only miss the command line and the autostart.
+
+From a checkout, build and install in one step:
+
 ```bash
 ./Tools/install.sh
 ```
