@@ -15,7 +15,7 @@ public final class AppPauseEnforcer: Enforcer {
     public func apply(_ service: Service, spec: LeverSpec, receipt: inout EnforcementReceipt,
                       context: EnforcementContext) throws {
         guard case .appPause(let command, let resume) = spec, let tool = command.first else {
-            throw EnforcementError.leverFailed(.appPause, "falscher Hebel-Typ")
+            throw EnforcementError.leverFailed(.appPause, L("falscher Hebel-Typ"))
         }
         let r = try Shell.run(tool, Array(command.dropFirst()))
         guard r.ok else {

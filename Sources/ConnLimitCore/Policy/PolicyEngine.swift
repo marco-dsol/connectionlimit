@@ -78,18 +78,18 @@ public final class PolicyEngine {
         for service in decision.shouldBlock where !currentlyBlocked.contains(service.id) {
             do {
                 try coordinator.block(service, context: context, reason: .profile)
-                report.blocked.append(service.name)
+                report.blocked.append(service.displayName)
             } catch EnforcementError.noApplicableLever {
                 // Zwei sehr verschiedene Fälle sehen hier gleich aus: der
                 // Dienst läuft gerade nicht (harmlos), oder alle seine Hebel
                 // brauchen root, das wir nicht haben (nicht harmlos — der
                 // Nutzer glaubt sonst, es sei gesperrt).
                 if !Shell.isRoot && service.levers.allSatisfy({ $0.kind.needsRoot }) {
-                    report.needsRoot.append(service.name)
+                    report.needsRoot.append(service.displayName)
                 }
                 continue
             } catch {
-                report.failed.append((service.name, error.localizedDescription))
+                report.failed.append((service.displayName, error.localizedDescription))
             }
         }
 
@@ -97,7 +97,7 @@ public final class PolicyEngine {
         for receipt in try store.openReceipts()
         where receipt.reason == .profile && !decision.shouldBlock.contains(where: { $0.id == receipt.serviceId }) {
             try? coordinator.revert(receipt)
-            report.released.append(receipt.serviceId)
+            report.released.append(catalog.serviceOrUnknown(id: receipt.serviceId).displayName)
         }
 
         return report
@@ -126,7 +126,7 @@ public final class PolicyEngine {
         for grant in try store.grants() where grant.isExpired {
             let now = (try? store.serviceTotal(grant.serviceId)) ?? 0
             let spent = max(0, now - grant.bytesAtStart)
-            let name = catalog.service(id: grant.serviceId)?.name ?? grant.serviceId
+            let name = catalog.serviceOrUnknown(id: grant.serviceId).displayName
             closed.append((name, spent))
             try store.deleteGrant(id: grant.id)
         }
@@ -139,7 +139,7 @@ public final class PolicyEngine {
         var lifted: [String] = []
         for receipt in try store.openReceipts() where receipt.isExpired {
             try? coordinator.revert(receipt)
-            lifted.append(catalog.service(id: receipt.serviceId)?.name ?? receipt.serviceId)
+            lifted.append(catalog.serviceOrUnknown(id: receipt.serviceId).displayName)
         }
         return lifted
     }

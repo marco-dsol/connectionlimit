@@ -35,10 +35,10 @@ extension ServiceUsage {
     }
 
     var statusText: String {
-        if isLeaking() { return "trotz Sperre aktiv" }
-        if isBlocked   { return "gesperrt" }
-        if isActive()  { return "aktiv" }
-        return "still"
+        if isLeaking() { return L("trotz Sperre aktiv") }
+        if isBlocked   { return L("gesperrt") }
+        if isActive()  { return L("aktiv") }
+        return L("still")
     }
 
     var statusSymbol: String {
@@ -68,10 +68,10 @@ extension NetworkClass {
     }
     var explanation: String {
         switch self {
-        case .free:    return "Flatrate — es wird nichts gesperrt und nichts aufs Budget gezählt."
-        case .metered: return "Teuer — hier greift der Urlaubsmodus, der Verbrauch zählt aufs Budget."
-        case .limited: return "Begrenzt — sparsames Profil, Verbrauch zählt aufs Budget."
-        case .unknown: return "Noch nicht eingestuft — solange wird bewusst nichts gesperrt."
+        case .free:    return L("Flatrate — es wird nichts gesperrt und nichts aufs Budget gezählt.")
+        case .metered: return L("Teuer — hier greift der Urlaubsmodus, der Verbrauch zählt aufs Budget.")
+        case .limited: return L("Begrenzt — sparsames Profil, Verbrauch zählt aufs Budget.")
+        case .unknown: return L("Noch nicht eingestuft — solange wird bewusst nichts gesperrt.")
         }
     }
 }
@@ -118,13 +118,6 @@ extension BudgetStatus.Light {
         case .green:  return .green
         case .yellow: return .orange
         case .red:    return .red
-        }
-    }
-    var text: String {
-        switch self {
-        case .green:  return "im Rahmen"
-        case .yellow: return "leicht drüber"
-        case .red:    return "zu schnell"
         }
     }
 }
@@ -179,6 +172,8 @@ struct Sparkline: View {
     var tint: Color = .accentColor
     var height: CGFloat = 22
     var barWidth: CGFloat = 3
+    /// Länge eines Fensters — nur für den Hinweistext.
+    var bucketLength: TimeInterval = 3600
 
     private var peak: Int64 { max(1, buckets.map(\.total).max() ?? 1) }
 
@@ -195,7 +190,14 @@ struct Sparkline: View {
             }
         }
         .frame(height: height, alignment: .bottom)
-        .help(buckets.isEmpty ? "Kein Verlauf" : "Verlauf der letzten \(buckets.count) Stunden")
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        if buckets.isEmpty { return L("Kein Verlauf") }
+        return bucketLength >= 86400
+            ? L("Verlauf der letzten %@ Tage", buckets.count)
+            : L("Verlauf der letzten %@ Stunden", buckets.count)
     }
 }
 
@@ -314,31 +316,48 @@ struct Card<Content: View>: View {
 
 // MARK: - Zeitangaben
 
-func relativeRemaining(_ date: Date) -> String {
-    let s = max(0, date.timeIntervalSinceNow)
-    if s < 60 { return "\(Int(s)) s" }
-    if s < 3600 { return "\(Int(s / 60)) min" }
-    if s < 86400 { return String(format: "%.1f h", s / 3600) }
-    return String(format: "%.0f Tage", s / 86400)
-}
+//
+// Die Formate selbst liegen im Kern (`DisplayTime`), damit Fenster und
+// Terminal dieselbe Zeit gleich schreiben.
 
-func relativeAgo(_ date: Date) -> String {
-    let s = max(0, Date().timeIntervalSince(date))
-    if s < 60 { return "vor \(Int(s)) s" }
-    if s < 3600 { return "vor \(Int(s / 60)) min" }
-    if s < 86400 { return "vor \(Int(s / 3600)) h" }
-    if s < 7 * 86400 { return "vor \(Int(s / 86400)) Tagen" }
-    return dateStamp(date)
-}
+func relativeRemaining(_ date: Date) -> String { DisplayTime.remaining(until: date) }
 
-func dateStamp(_ date: Date) -> String {
-    let f = DateFormatter()
-    f.dateFormat = Calendar.current.isDateInToday(date) ? "HH:mm" : "dd.MM. HH:mm"
-    return f.string(from: date)
-}
+func relativeAgo(_ date: Date) -> String { DisplayTime.ago(date) }
 
-func clockStamp(_ date: Date) -> String {
-    let f = DateFormatter()
-    f.dateFormat = "HH:mm"
-    return f.string(from: date)
+func dateStamp(_ date: Date) -> String { DisplayTime.stamp(date) }
+
+func clockStamp(_ date: Date) -> String { DisplayTime.clock(date) }
+
+// MARK: - Sprache
+
+/// Umschalter für die Sprache: Automatik (wie macOS), Deutsch, English.
+/// Die Sprachnamen stehen in ihrer eigenen Sprache — wer die falsche
+/// erwischt hat, findet so trotzdem zurück.
+struct LanguageMenu: View {
+    @ObservedObject var model: AppModel
+    var compact = false
+
+    var body: some View {
+        Menu {
+            Picker(L("Sprache"), selection: Binding(
+                get: { model.languagePreference },
+                set: { model.setLanguage($0) })) {
+                    Text(L("Wie macOS")).tag(LanguagePreference.system)
+                    Divider()
+                    Text(Language.de.nativeName).tag(LanguagePreference.de)
+                    Text(Language.en.nativeName).tag(LanguagePreference.en)
+                }
+                .pickerStyle(.inline)
+        } label: {
+            if compact {
+                Text(model.language.shortCode)
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+            } else {
+                Label(model.language.nativeName, systemImage: "globe")
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help(L("Sprache"))
+    }
 }

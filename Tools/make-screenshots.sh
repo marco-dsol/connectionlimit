@@ -1,15 +1,24 @@
 #!/bin/bash
 # Nimmt das Fenster in jedem Bereich auf — für README und Website.
 #
+#   Tools/make-screenshots.sh        deutsche Oberfläche → web/public/screenshots/
+#   Tools/make-screenshots.sh en     englische Oberfläche → web/public/screenshots/en/
+#
 # Der Bereich wird über die gemerkte Auswahl (`mainTab`) gesetzt und die App
 # neu gestartet; klicken kann dieses Skript nicht, und Bedienungshilfen dafür
-# einzuschalten wäre eine unangemessen große Bitte an den Nutzer.
+# einzuschalten wäre eine unangemessen große Bitte an den Nutzer. Die Sprache
+# kommt über `CONNLIMIT_LANG` — die eigene Spracheinstellung bleibt unberührt.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/dist/ConnectionLimit.app"
-OUT="$ROOT/web/public/screenshots"
 BUNDLE_ID="at.mitsol.connectionlimit"
+LANG_CODE="${1:-de}"
+case "$LANG_CODE" in
+  de) OUT="$ROOT/web/public/screenshots" ;;
+  en) OUT="$ROOT/web/public/screenshots/en" ;;
+  *)  echo "Sprache: de oder en" >&2; exit 2 ;;
+esac
 mkdir -p "$OUT"
 
 # Bildschirm wach halten — ein schlafendes Display liefert schwarze Bilder.
@@ -41,7 +50,10 @@ shot() {
   defaults write "$BUNDLE_ID" mainTab -string "$tab"
   pkill -f "ConnectionLimit.app/Contents/MacOS/ConnectionLimit" 2>/dev/null || true
   sleep 1.5
-  open "$APP" --args --window
+  # Direkt starten statt über `open`: Nur so erreicht die Umgebungsvariable
+  # das Programm.
+  CONNLIMIT_LANG="$LANG_CODE" "$APP/Contents/MacOS/ConnectionLimit" --window >/dev/null 2>&1 &
+  disown
   sleep 5
 
   local attempt

@@ -29,7 +29,11 @@ public enum BuiltinCatalog {
                    "airportd", "wifip2pd", "wifivelocityd", "wifianalyticsd"]),
         svc("vpn", "VPN", .essential,
             proc: ["NEIKEv2Provider", "racoon", "wireguard-go", "Tailscale",
-                   "tailscaled", "openvpn", "com.wireguard.macos"],
+                   "tailscaled", "openvpn", "com.wireguard.macos",
+                   // Anbieter-Clients: Ihr Prozess trägt bei aktivem Tunnel den
+                   // gesamten Verkehr — eingefroren wäre das Netz weg.
+                   "NordVPN", "com.nordvpn.mac", "nordvpnd", "ProtonVPN",
+                   "mullvad-daemon", "Mullvad VPN", "ExpressVPN", "expressvpnd"],
             note: "Ein gesperrtes VPN würde die Verbindung ganz kappen."),
         svc("apple-push", "Apple Push", .essential, proc: ["apsd"],
             note: "Transportiert iMessage- und Mail-Hinweise. Sehr geringes Volumen — sperren lohnt nicht."),
@@ -61,6 +65,9 @@ public enum BuiltinCatalog {
             bundle: ["com.docker.docker"],
             levers: [.processFreeze],
             note: "Image-Pulls sind schnell mehrere GB."),
+        svc("acrobat-update", "Adobe Acrobat Updater", .update,
+            proc: ["Acrobat Updater", "AdobeARM", "AdobeARMHelper"],
+            levers: [.processFreeze]),
         svc("jetbrains-update", "JetBrains Updates", .update,
             proc: ["JetBrains Toolbox"], levers: [.processFreeze]),
     ]

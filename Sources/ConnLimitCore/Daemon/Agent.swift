@@ -5,7 +5,7 @@ import Foundation
 /// Taktung:
 ///   alle 2 s   Sampling
 ///   alle 10 s  Netzwechsel prüfen
-///   alle 30 s  Timer abarbeiten
+///   alle 30 s  Timer abarbeiten, Profil abgleichen
 ///   alle 60 s  Budget prüfen
 ///   stündlich  verdichten
 public final class Agent {
@@ -14,6 +14,9 @@ public final class Agent {
         public var networkInterval: TimeInterval = 10
         public var timerInterval: TimeInterval = 30
         public var budgetInterval: TimeInterval = 60
+        /// Abgleich von Profil und tatsächlichen Sperren. Fängt auch Dienste
+        /// ein, die erst nach dem Netzwechsel gestartet wurden.
+        public var policyInterval: TimeInterval = 30
         public var compactInterval: TimeInterval = 3600
         /// Nur messen, nichts sperren — für den ersten Einsatz sinnvoll.
         public var readOnly: Bool = false
@@ -153,7 +156,101 @@ public final class Agent {
         return escalation
     }
 
-    // MARK: - Lauf
+    // MARK: - Takt
+
+    /// Was ein Takt bewirkt hat — für das Protokoll des Hintergrunddienstes
+    /// und für die Oberfläche, die daraus ihre Hinweise bildet.
+    public struct TickReport {
+        public var networkChanged = false
+        public var network: NetworkIdentity = .offline
+        public var networkClass: NetworkClass = .unknown
+        public var policy: PolicyEngine.SyncReport?
+        public var closedGrants: [(service: String, bytes: Int64)] = []
+        public var liftedTimers: [String] = []
+        public var escalation: BudgetTracker.Escalation?
+        /// Fehler einzelner Schritte. Ein Schritt, der scheitert, hält die
+        /// übrigen nicht auf: Fällt etwa das Budget aus, sollen befristete
+        /// Sperren trotzdem pünktlich ablaufen.
+        public var errors: [Error] = []
+    }
+
+    private var lastNetworkCheck = Date.distantPast
+    private var lastTimerCheck = Date.distantPast
+    private var lastBudgetCheck = Date.distantPast
+    private var lastPolicyCheck = Date.distantPast
+    private var lastCompaction = Date.distantPast
+
+    /// Einmal vor dem ersten Takt: Netz bestimmen und aufräumen, was ein
+    /// abgestürzter Lauf hinterlassen hat. Liefert die freigegebenen Sperren.
+    @discardableResult
+    public func start() throws -> [String] {
+        try refreshNetwork()
+        lastNetworkCheck = Date()
+        return try coordinator.recover(
+            context: context,
+            activeTier: policy.effectiveTier(networkClass: currentClass))
+    }
+
+    /// Ein Takt: messen, und was sonst gerade fällig ist.
+    ///
+    /// Eine Implementierung für den Hintergrunddienst und die App. Vorher
+    /// lief der Zeitplan nur in `run()` — die App hat gemessen, aber beim
+    /// Wechsel an den Hotspot kein Profil angewandt, befristete Sperren nie
+    /// aufgehoben und die Rohdaten nie verdichtet.
+    @discardableResult
+    public func tick(now: Date = Date()) -> TickReport {
+        var report = TickReport()
+        func step(_ body: () throws -> Void) {
+            do { try body() } catch { report.errors.append(error) }
+        }
+
+        var policyDue = false
+
+        if now.timeIntervalSince(lastNetworkCheck) >= config.networkInterval {
+            lastNetworkCheck = now
+            step {
+                let (_, _, changed) = try refreshNetwork()
+                report.networkChanged = changed
+                // Neues Netz ⇒ sofort neu bewerten, nicht erst im nächsten
+                // Policy-Fenster: Am Hotspot zählt jede halbe Minute.
+                if changed { policyDue = true }
+            }
+        }
+
+        step { try tickSampling() }
+
+        if now.timeIntervalSince(lastTimerCheck) >= config.timerInterval {
+            lastTimerCheck = now
+            step {
+                report.closedGrants = try policy.expireGrants()
+                report.liftedTimers = try policy.expireTimers()
+                // Eine abgelaufene Freigabe heißt: zurück ins Profil.
+                if !report.closedGrants.isEmpty { policyDue = true }
+            }
+        }
+
+        if now.timeIntervalSince(lastBudgetCheck) >= config.budgetInterval {
+            lastBudgetCheck = now
+            step {
+                report.escalation = try tickBudget()
+                if report.escalation != nil { policyDue = true }
+            }
+        }
+
+        if policyDue || now.timeIntervalSince(lastPolicyCheck) >= config.policyInterval {
+            lastPolicyCheck = now
+            step { report.policy = try tickPolicy() }
+        }
+
+        if now.timeIntervalSince(lastCompaction) >= config.compactInterval {
+            lastCompaction = now
+            step { try store.compact(now: now) }
+        }
+
+        report.network = currentNetwork
+        report.networkClass = currentClass
+        return report
+    }
 
     public func runOnce() throws {
         try refreshNetwork()
@@ -165,69 +262,39 @@ public final class Agent {
     /// Blockierende Schleife. Bricht bei SIGINT/SIGTERM sauber ab und gibt
     /// dabei alle Profil-Sperren frei.
     public func run() throws {
-        try refreshNetwork()
-        let released = try coordinator.recover(
-            context: context,
-            activeTier: policy.effectiveTier(networkClass: currentClass))
+        let released = try start()
         if config.verbose && !released.isEmpty {
-            log("Wiederherstellung: freigegeben — \(released.joined(separator: ", "))")
+            log(L("Wiederherstellung: freigegeben — %@", released.joined(separator: ", ")))
         }
 
-        var lastNetwork = Date.distantPast
-        var lastTimer = Date.distantPast
-        var lastBudget = Date.distantPast
-        var lastCompact = Date.distantPast
-        var lastPolicy = Date.distantPast
-
         while !stopping {
-            let now = Date()
-            do {
-                if now.timeIntervalSince(lastNetwork) >= config.networkInterval {
-                    lastNetwork = now
-                    let (identity, cls, changed) = try refreshNetwork()
-                    if changed {
-                        log("Netzwechsel: \(identity.label) [\(cls.displayName)]")
-                        if let report = try tickPolicy() { logReport(report) }
-                        lastPolicy = now
-                    }
-                }
+            let report = tick()
 
-                try tickSampling()
-
-                if now.timeIntervalSince(lastTimer) >= config.timerInterval {
-                    lastTimer = now
-                    for closed in try policy.expireGrants() {
-                        log("Freigabe beendet: \(closed.service) hat \(ByteFormat.short(closed.bytes)) verbraucht")
-                    }
-                    for lifted in try policy.expireTimers() {
-                        log("Sperre abgelaufen: \(lifted)")
-                    }
-                }
-
-                if now.timeIntervalSince(lastBudget) >= config.budgetInterval {
-                    lastBudget = now
-                    if let escalation = try tickBudget() {
-                        log("Automatik: Stufe \(escalation.newTier.displayName) — \(escalation.reason)")
-                    }
-                }
-
-                if now.timeIntervalSince(lastPolicy) >= 30 {
-                    lastPolicy = now
-                    if let report = try tickPolicy(), config.verbose { logReport(report) }
-                }
-
-                if now.timeIntervalSince(lastCompact) >= config.compactInterval {
-                    lastCompact = now
-                    try store.compact()
-                }
-            } catch {
-                log("Fehler im Takt: \(error.localizedDescription)")
+            if report.networkChanged {
+                log(L("Netzwechsel: %@ [%@]", report.network.displayLabel,
+                      report.networkClass.displayName))
+            }
+            for closed in report.closedGrants {
+                log(L("Freigabe beendet: %@ hat %@ verbraucht", closed.service,
+                      ByteFormat.short(closed.bytes)))
+            }
+            for lifted in report.liftedTimers {
+                log(L("Sperre abgelaufen: %@", lifted))
+            }
+            if let escalation = report.escalation {
+                log(L("Automatik: Stufe %@ — %@", escalation.newTier.displayName, escalation.reason))
+            }
+            if let policy = report.policy, report.networkChanged || config.verbose {
+                logReport(policy)
+            }
+            for error in report.errors {
+                log(L("Fehler im Takt: %@", error.localizedDescription))
             }
 
             Thread.sleep(forTimeInterval: config.sampleInterval)
         }
 
-        log("Beende — gebe Profil-Sperren frei")
+        log(L("Beende — gebe Profil-Sperren frei"))
         try? releaseProfileBlocks()
     }
 
@@ -245,8 +312,8 @@ public final class Agent {
     }
 
     private func logReport(_ report: PolicyEngine.SyncReport) {
-        if !report.blocked.isEmpty { log("Gesperrt: \(report.blocked.joined(separator: ", "))") }
-        if !report.released.isEmpty { log("Freigegeben: \(report.released.joined(separator: ", "))") }
-        for f in report.failed { log("Fehlgeschlagen: \(f.service) — \(f.reason)") }
+        if !report.blocked.isEmpty { log(L("Gesperrt: %@", report.blocked.joined(separator: ", "))) }
+        if !report.released.isEmpty { log(L("Freigegeben: %@", report.released.joined(separator: ", "))) }
+        for f in report.failed { log(L("Fehlgeschlagen: %@ — %@", f.service, f.reason)) }
     }
 }

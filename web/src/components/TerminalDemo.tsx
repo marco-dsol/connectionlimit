@@ -1,60 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReveal } from '../hooks/useReveal'
+import { useLang } from '../i18n'
 
 /// Dasselbe Werkzeug im Terminal — abgetippt, wie es wirklich antwortet.
 /// Die Ausgaben stammen aus einem echten Lauf; gekürzt, nicht geschönt.
-
-interface Line {
-  text: string
-  tone?: 'dim' | 'green' | 'red' | 'amber' | 'head'
-}
-
-const PROGRAMS: { command: string; lines: Line[] }[] = [
-  {
-    command: 'connlimit tracked',
-    lines: [
-      { text: 'Getrackte Dienste  ·  seit 25.08. 17:01  ·  Netz: iPhone von Marco [teuer]', tone: 'dim' },
-      { text: '' },
-      { text: '  DIENST                KLASSE          GESAMT     HEUTE  ZULETZT   VERLAUF 24 h', tone: 'head' },
-      { text: '● Google Chrome         Browser       412.7 MB  26.4 MB  gerade    ▁▂▃▅█▆▃▂▁▁▂▃', tone: 'green' },
-      { text: '● Microsoft Outlook     E-Mail        119.3 MB  12.1 MB  gerade    ▂▃▂▁▁▂▅▃▂▁▁▁', tone: 'green' },
-      { text: '⚠ OneDrive              Cloud-Sync     64.0 MB   1.4 MB  gerade    ▁▁▁▂▁▁▁▂▁▁▁▁', tone: 'amber' },
-      { text: '  ↳ 3× trotz Sperre aktiv · 1.4 MB · zuletzt 12:04', tone: 'dim' },
-      { text: '🔒 iCloud Fotos         Cloud-Sync    180.2 MB       —  vor 8 min ▃▅▂▁▁·······', tone: 'red' },
-      { text: '  macOS Update          Updates        29.0 MB       —  vor 39 min▁▁·········', tone: 'dim' },
-      { text: '' },
-      { text: 'Gesamt: 805.2 MB  ·  25 Dienste  ·  3 gerade aktiv', tone: 'dim' },
-    ],
-  },
-  {
-    command: 'connlimit events --attempts',
-    lines: [
-      { text: 'Protokoll  ·  seit 18.08. 12:04', tone: 'dim' },
-      { text: '' },
-      { text: '  12:04–12:19       trotz Sperre aktiv  OneDrive        1.4 MB', tone: 'amber' },
-      { text: '  09:31–09:33       trotz Sperre aktiv  iCloud Fotos    240 kB', tone: 'amber' },
-      { text: '  gestern 21:12     trotz Sperre aktiv  OneDrive        780 kB', tone: 'amber' },
-      { text: '' },
-      { text: 'Eine Sperre, durch die etwas durchkommt, ist schlimmer als keine —', tone: 'dim' },
-      { text: 'weil man sich auf sie verlässt. Deshalb steht sie hier.', tone: 'dim' },
-    ],
-  },
-  {
-    command: 'connlimit profile edit sparsam update backup media',
-    lines: [
-      { text: '✓ Sparsam sperrt jetzt: Updates, Backup, Medien', tone: 'green' },
-      { text: '   freigegeben: telemetry', tone: 'dim' },
-      { text: '' },
-      { text: '$ connlimit profile', tone: 'dim' },
-      { text: '  ● Aus             —', tone: 'dim' },
-      { text: '  ○ Sparsam         Updates, Backup, Medien  ✎', tone: 'amber' },
-      { text: '  ○ Urlaubsmodus    Updates, Backup, Telemetrie, Medien, Cloud-Sync', tone: 'dim' },
-      { text: '  ○ Notfall         … zusätzlich E-Mail, Browser', tone: 'dim' },
-    ],
-  },
-]
+/// Sie stehen im Wörterbuch, weil die englische Kommandozeile anders antwortet.
 
 export function TerminalDemo() {
+  const { t } = useLang()
+  const programs = t.terminal.programs
   const head = useReveal<HTMLDivElement>()
   const box = useReveal<HTMLDivElement>(100)
   const [program, setProgram] = useState(0)
@@ -62,8 +16,10 @@ export function TerminalDemo() {
   const [shown, setShown] = useState(0)
   const timers = useRef<number[]>([])
 
+  // Hängt auch an der Sprache: Beim Wechsel wird von vorn getippt — eine halb
+  // deutsche, halb englische Ausgabe hat es so nie gegeben.
   useEffect(() => {
-    const current = PROGRAMS[program]
+    const current = programs[program]
     setTyped('')
     setShown(0)
     timers.current.forEach(window.clearTimeout)
@@ -85,22 +41,20 @@ export function TerminalDemo() {
     })
 
     const finished = typingDone + current.lines.length * 95 + 3600
-    plan(finished, () => setProgram((p) => (p + 1) % PROGRAMS.length))
+    plan(finished, () => setProgram((p) => (p + 1) % programs.length))
 
     return () => timers.current.forEach(window.clearTimeout)
-  }, [program])
+  }, [program, programs])
 
-  const current = PROGRAMS[program]
+  const current = programs[program]
 
   return (
     <section id="terminal">
       <div className="wrap">
         <div className="section-head reveal" ref={head}>
-          <span className="eyebrow">Terminal</span>
-          <h2>Alles, was das Fenster kann, kann auch die Kommandozeile</h2>
-          <p className="lead">
-            Dieselbe Datenbank, dieselben Regeln. Wer lieber tippt, verpasst nichts.
-          </p>
+          <span className="eyebrow">{t.terminal.eyebrow}</span>
+          <h2>{t.terminal.title}</h2>
+          <p className="lead">{t.terminal.lead}</p>
         </div>
 
         <div className="reveal" ref={box}>

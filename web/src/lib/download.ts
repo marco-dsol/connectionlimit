@@ -18,11 +18,16 @@ export const DOWNLOAD = {
   file: GITHUB_URL
     ? `${GITHUB_URL}/releases/download/v${info.version}/${info.file}`
     : `./download/${info.file}`,
-  size: info.size,
+  bytes: info.bytes,
   sha256: info.sha256,
   /// Bei Apple notarisiert? Steuert, ob die Seite den Umweg über das
   /// Kontextmenü erklärt.
   notarized: info.notarized,
-  requires: 'macOS 14 oder neuer',
-  architectures: 'Apple Silicon und Intel',
+}
+
+/// Paketgröße mit dem Dezimalzeichen der Seitensprache. Aus der Byte-Zahl
+/// gerechnet statt aus dem fertigen Text in `build-info.json` — der trägt
+/// das deutsche Komma, und „4,4 MB“ liest sich auf Englisch wie 44.
+export function downloadSize(decimal: string): string {
+  return `${(DOWNLOAD.bytes / 1e6).toFixed(1).replace('.', decimal)} MB`
 }

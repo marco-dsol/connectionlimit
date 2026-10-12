@@ -1,43 +1,21 @@
 import { useState } from 'react'
 import { useReveal } from '../hooks/useReveal'
-import { DOWNLOAD, GITHUB_URL } from '../lib/download'
-
-interface Step {
-  title: string
-  text: string
-  code?: string
-  codeNote?: string
-}
-
-const GATEKEEPER_STEP: Step = {
-  title: 'Beim ersten Start: Rechtsklick › Öffnen',
-  text: 'Das Programm ist nicht bei Apple notarisiert — ein Doppelklick wird deshalb '
-      + 'zunächst abgelehnt. Über das Kontextmenü einmal „Öffnen“ wählen, danach '
-      + 'startet es wie jedes andere.',
-  code: 'xattr -d com.apple.quarantine /Applications/ConnectionLimit.app',
-  codeNote: 'Wer den Weg über das Terminal bevorzugt',
-}
-
-/// Ist das Paket notarisiert, fällt der Umweg über das Kontextmenü weg — und
-/// mit ihm der ganze Schritt. Ein Hinweis, der nicht mehr stimmt, ist
-/// schlimmer als keiner.
-const STEPS: Step[] = [
-  {
-    title: 'Laden und ablegen',
-    text: 'Das Abbild öffnen und ConnectionLimit in den Ordner „Programme“ ziehen. '
-        + 'Ein Universal-Programm für Apple Silicon und Intel.',
-  },
-  ...(DOWNLOAD.notarized ? [] : [GATEKEEPER_STEP]),
-  {
-    title: 'Netz einstufen',
-    text: 'Solange ein Netz nicht eingestuft ist, sperrt das Werkzeug bewusst nichts. '
-        + 'In der Menüleiste oben rechts — oder im Terminal.',
-    code: 'connlimit net set current teuer',
-    codeNote: 'Oder im Terminal',
-  },
-]
+import { DOWNLOAD, GITHUB_URL, downloadSize } from '../lib/download'
+import { useLang } from '../i18n'
+import type { InstallStep } from '../i18n/de'
 
 export function Start() {
+  const { t } = useLang()
+  const s = t.start
+  const size = downloadSize(t.decimal)
+  // Ist das Paket notarisiert, fällt der Umweg über das Kontextmenü weg — und
+  // mit ihm der ganze Schritt. Ein Hinweis, der nicht mehr stimmt, ist
+  // schlimmer als keiner.
+  const steps: InstallStep[] = [
+    s.steps.get,
+    ...(DOWNLOAD.notarized ? [] : [s.steps.gatekeeper]),
+    s.steps.classify,
+  ]
   const head = useReveal<HTMLDivElement>()
   const card = useReveal<HTMLDivElement>(60)
 
@@ -45,52 +23,44 @@ export function Start() {
     <section id="loslegen">
       <div className="wrap">
         <div className="section-head reveal" ref={head}>
-          <span className="eyebrow">Loslegen</span>
-          <h2>Laden, öffnen, Netz einstufen</h2>
-          <p className="lead">
-            Beim ersten Start ist auch das Heim-WLAN unbekannt. Dort ungefragt Dienste
-            einzufrieren wäre die falsche Art Überraschung — deshalb passiert erst
-            etwas, wenn du ein Netz einstufst.
-          </p>
+          <span className="eyebrow">{s.eyebrow}</span>
+          <h2>{s.title}</h2>
+          <p className="lead">{s.lead}</p>
         </div>
 
         <div className="download reveal" ref={card}>
           <div className="download-main">
             <div>
-              <span className="pill pill-green">Version {DOWNLOAD.version}</span>
-              <h3 className="download-title">ConnectionLimit für macOS</h3>
+              <span className="pill pill-green">{s.version} {DOWNLOAD.version}</span>
+              <h3 className="download-title">{s.product}</h3>
               <p className="download-meta">
-                {DOWNLOAD.requires} · {DOWNLOAD.architectures} · {DOWNLOAD.size}
+                {t.download.requires} · {t.download.architectures} · {size}
               </p>
             </div>
             <a className="btn btn-primary btn-lg" href={DOWNLOAD.file} download>
-              <span aria-hidden>↓</span> Laden ({DOWNLOAD.size})
+              <span aria-hidden>↓</span> {s.download(size)}
             </a>
           </div>
-          <Checksum value={DOWNLOAD.sha256} />
+          <Checksum value={DOWNLOAD.sha256} copy={s.copy} copied={s.copied} />
         </div>
 
-        <div className="steps-grid" style={{ marginTop: 18 }}>
-          {STEPS.map((step, index) => (
-            <Install key={step.title} step={step} number={index + 1} delay={index * 80} />
+        <div className="steps-grid" style={{ marginTop: 18, ['--steps' as string]: steps.length }}>
+          {steps.map((step, index) => (
+            <Install key={step.title} step={step} number={index + 1} delay={index * 80}
+                     copy={s.copy} copied={s.copied} />
           ))}
         </div>
 
         <p className="build-note">
-          {DOWNLOAD.notarized
-            ? 'Signiert mit Developer ID und bei Apple notarisiert. '
-            : 'Nichts davon ist eine Blackbox: Das Programm ist ad hoc signiert, nicht '
-              + 'notarisiert — genau deshalb der Umweg in Schritt 2. '}
-          Die Kommandozeile steckt im Programm; einmal verknüpfen, dann liegt sie im
-          PATH:{' '}
+          {DOWNLOAD.notarized ? s.notarized : s.adhoc}
+          {s.cli}{' '}
           <code className="mono">
             ln -s /Applications/ConnectionLimit.app/Contents/MacOS/connlimit
             {' '}~/.local/bin/connlimit
           </code>
           {GITHUB_URL && (
             <>
-              {' '}Wer lieber selbst baut, findet den vollständigen Quelltext samt
-              Prüfsuite auf <a href={GITHUB_URL}>GitHub</a>.
+              {' '}{s.sourceBefore} <a href={GITHUB_URL}>GitHub</a>{s.sourceAfter}
             </>
           )}
         </p>
@@ -99,7 +69,12 @@ export function Start() {
   )
 }
 
-function Checksum({ value }: { value: string }) {
+interface CopyLabels {
+  copy: string
+  copied: string
+}
+
+function Checksum({ value, copy, copied: copiedLabel }: { value: string } & CopyLabels) {
   const [copied, setCopied] = useState(false)
   return (
     <div className="checksum">
@@ -116,13 +91,19 @@ function Checksum({ value }: { value: string }) {
           }
         }}
       >
-        {copied ? 'kopiert' : 'kopieren'}
+        {copied ? copiedLabel : copy}
       </button>
     </div>
   )
 }
 
-function Install({ step, number, delay }: { step: Step; number: number; delay: number }) {
+function Install({
+  step,
+  number,
+  delay,
+  copy: copyLabel,
+  copied: copiedLabel,
+}: { step: InstallStep; number: number; delay: number } & CopyLabels) {
   const ref = useReveal<HTMLDivElement>(delay)
   const [copied, setCopied] = useState(false)
 
@@ -147,7 +128,7 @@ function Install({ step, number, delay }: { step: Step; number: number; delay: n
           {step.codeNote && <p className="code-note">{step.codeNote}</p>}
           <div className="code">
             <span>{step.code}</span>
-            <button onClick={copy}>{copied ? 'kopiert' : 'kopieren'}</button>
+            <button onClick={copy}>{copied ? copiedLabel : copyLabel}</button>
           </div>
         </>
       )}

@@ -11,19 +11,19 @@ public enum PolicyTier: Int, Codable, CaseIterable, Comparable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .off:       return "Aus"
-        case .frugal:    return "Sparsam"
-        case .vacation:  return "Urlaubsmodus"
-        case .emergency: return "Notfall"
+        case .off:       return L("Aus")
+        case .frugal:    return L("Sparsam")
+        case .vacation:  return L("Urlaubsmodus")
+        case .emergency: return L("Notfall")
         }
     }
 
     public var summary: String {
         switch self {
-        case .off:       return "keine Sperren"
-        case .frugal:    return "Updates, Backups, Telemetrie, Medien"
-        case .vacation:  return "zusätzlich Cloud-Sync"
-        case .emergency: return "zusätzlich E-Mail und Browser"
+        case .off:       return L("keine Sperren")
+        case .frugal:    return L("Updates, Backups, Telemetrie, Medien")
+        case .vacation:  return L("zusätzlich Cloud-Sync")
+        case .emergency: return L("zusätzlich E-Mail und Browser")
         }
     }
 
@@ -123,7 +123,7 @@ public struct PolicyState: Codable, Sendable {
     public func summary(for tier: PolicyTier) -> String {
         guard isCustomized(tier) else { return tier.summary }
         let classes = blockedClasses(for: tier)
-        guard !classes.isEmpty else { return "keine Sperren" }
+        guard !classes.isEmpty else { return L("keine Sperren") }
         return ServiceClass.allCases.filter { classes.contains($0) }
             .map(\.displayName).joined(separator: ", ")
     }
@@ -198,7 +198,17 @@ public struct BudgetStatus: Sendable {
         return Int64(Double(usedTodayBytes) * 86_400 / elapsed)
     }
 
-    public enum Light: String, Sendable { case green, yellow, red }
+    public enum Light: String, Sendable {
+        case green, yellow, red
+
+        public var text: String {
+            switch self {
+            case .green:  return L("im Rahmen")
+            case .yellow: return L("leicht drüber")
+            case .red:    return L("zu schnell")
+            }
+        }
+    }
 
     public var light: Light {
         let allowance = dailyAllowance

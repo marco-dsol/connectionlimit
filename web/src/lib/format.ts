@@ -13,6 +13,6 @@ export function rate(bytesPerSecond: number): string {
   return `${bytes(bytesPerSecond)}/s`
 }
 
-export function clock(date = new Date()): string {
-  return date.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' })
+export function clock(locale: string, date = new Date()): string {
+  return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false })
 }

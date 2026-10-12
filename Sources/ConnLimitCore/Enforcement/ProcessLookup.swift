@@ -36,14 +36,7 @@ public enum ProcessLookup {
         for e in list {
             let base = (e.command as NSString).lastPathComponent.lowercased()
             if names.contains(base) { result.append(e.pid); continue }
-            if prefixes.contains(where: { e.command.hasPrefix($0) }) { result.append(e.pid); continue }
-            // Bundle-Executables heißen oft wie die .app.
-            if let range = e.command.range(of: ".app/Contents/MacOS/") {
-                let appName = String(e.command[e.command.index(after: range.lowerBound)...])
-                _ = appName
-                let exec = (e.command as NSString).lastPathComponent.lowercased()
-                if names.contains(exec) { result.append(e.pid) }
-            }
+            if prefixes.contains(where: { e.command.hasPrefix($0) }) { result.append(e.pid) }
         }
         return result
     }

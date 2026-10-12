@@ -25,7 +25,7 @@ public final class PFEnforcer: Enforcer {
     public func apply(_ service: Service, spec: LeverSpec, receipt: inout EnforcementReceipt,
                       context: EnforcementContext) throws {
         guard case .pfDomains(let domains) = spec else {
-            throw EnforcementError.leverFailed(.pfDomains, "falscher Hebel-Typ")
+            throw EnforcementError.leverFailed(.pfDomains, L("falscher Hebel-Typ"))
         }
         guard Shell.isRoot else { throw EnforcementError.needsRoot(.pfDomains) }
         guard PFAnchor.isInstalled else { throw EnforcementError.pfAnchorMissing }
@@ -33,7 +33,7 @@ public final class PFEnforcer: Enforcer {
         let addresses = DNSResolver.addresses(for: domains)
         guard !addresses.isEmpty else {
             throw EnforcementError.leverFailed(.pfDomains,
-                "keine der Domains ließ sich auflösen — ohne Adressen gibt es nichts zu sperren")
+                L("keine der Domains ließ sich auflösen — ohne Adressen gibt es nichts zu sperren"))
         }
 
         let anchor = "\(Self.anchorRoot)/\(sanitize(service.id))"

@@ -30,11 +30,12 @@ public final class ProcessFreezeEnforcer: Enforcer {
                 // Fremder Nutzer oder SIP-geschützt — kein Grund, den Rest
                 // aufzugeben, aber der Nutzer soll es erfahren.
                 FileHandle.standardError.write(
-                    "connlimit: PID \(pid) (\(service.name)) darf nicht eingefroren werden\n".data(using: .utf8)!)
+                    ("connlimit: " + L("PID %@ (%@) darf nicht eingefroren werden", pid, service.displayName)
+                        + "\n").data(using: .utf8)!)
             }
         }
         guard !frozen.isEmpty else {
-            throw EnforcementError.leverFailed(.processFreeze, "keine PID konnte eingefroren werden")
+            throw EnforcementError.leverFailed(.processFreeze, L("keine PID konnte eingefroren werden"))
         }
         receipt.payload.pids = frozen
     }

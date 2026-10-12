@@ -24,6 +24,15 @@ public struct EnforcementReceipt: Codable, Sendable, Identifiable {
         case manual      // vom Nutzer einzeln gesetzt
         case timer       // befristete Sperre
         case budget      // automatische Eskalation
+
+        public var displayName: String {
+            switch self {
+            case .profile: return L("durch Profil")
+            case .manual:  return L("manuell")
+            case .timer:   return L("befristet")
+            case .budget:  return L("Budget-Automatik")
+            }
+        }
     }
 
     public struct Payload: Codable, Sendable {

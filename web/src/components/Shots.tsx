@@ -1,56 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useReveal } from '../hooks/useReveal'
-
-const SHOTS = [
-  {
-    id: 'verbrauch',
-    label: 'Verbrauch',
-    caption: 'Die Dauerliste. Grün heißt „bewegt gerade Daten“, rot „gesperrt“, orange „gesperrt, und trotzdem fließt etwas“.',
-  },
-  {
-    id: 'profile',
-    label: 'Profile',
-    caption: 'Jede Stufe sperrt Klassen. Welche das sind, legst du hier fest — die Voreinstellung ist nur ein Vorschlag.',
-  },
-  {
-    id: 'protokoll',
-    label: 'Protokoll',
-    caption: 'Wann gesperrt, wann freigegeben, wann trotz Sperre etwas durchkam. Mit Zeitpunkt und Menge.',
-  },
-  {
-    id: 'dienste',
-    label: 'Dienste',
-    caption: 'Der Katalog: was das Werkzeug kennt und mit welchem Hebel es den Dienst stoppt — samt Warnung, wie grob der Hebel wirkt.',
-  },
-  {
-    id: 'budget',
-    label: 'Budget',
-    caption: 'Reisebudget mit Tagesration und Hochrechnung. Nur Verbrauch in teuren Netzen zählt.',
-  },
-]
+import { useLang } from '../i18n'
 
 export function Shots() {
+  const { t, lang } = useLang()
   const [active, setActive] = useState(0)
+  /// Englische Aufnahmen liegen unter `screenshots/en/`, sobald
+  /// `Tools/make-screenshots.sh en` gelaufen ist. Fehlt eine, springt die
+  /// deutsche ein — und nur dann steht der Hinweis darunter. Ein Hinweis auf
+  /// deutsche Bilder unter englischen Bildern wäre falsch.
+  const [missing, setMissing] = useState<Record<string, boolean>>({})
   const head = useReveal<HTMLDivElement>()
   const frame = useReveal<HTMLDivElement>(120)
-  const shot = SHOTS[active]
+  const shot = t.shots.items[active]
+  const localized = lang !== 'de' && !missing[shot.id]
+  const src = localized ? `./screenshots/${lang}/${shot.id}.png` : `./screenshots/${shot.id}.png`
+
+  useEffect(() => setMissing({}), [lang])
 
   return (
     <section id="fenster">
       <div className="wrap">
         <div className="section-head reveal" ref={head}>
-          <span className="eyebrow">Das Fenster</span>
-          <h2>Echte Bildschirmfotos, nichts nachgezeichnet</h2>
-          <p className="lead">
-            Aufgenommen auf einem laufenden Mac. Die Zahlen sind echte Messwerte.
-          </p>
+          <span className="eyebrow">{t.shots.eyebrow}</span>
+          <h2>{t.shots.title}</h2>
+          <p className="lead">{t.shots.lead}</p>
         </div>
 
         <div className="shot-tabs">
-          {SHOTS.map((entry, index) => (
+          {t.shots.items.map((entry, index) => (
             <button
               key={entry.id}
               className={`shot-tab ${index === active ? 'on' : ''}`}
+              aria-pressed={index === active}
               onClick={() => setActive(index)}
             >
               {entry.label}
@@ -61,14 +43,18 @@ export function Shots() {
         <div className="reveal" ref={frame}>
           <div className="shot-frame">
             <img
-              key={shot.id}
+              key={src}
               className="swap"
-              src={`./screenshots/${shot.id}.png`}
-              alt={`ConnectionLimit — Bereich ${shot.label}`}
+              src={src}
+              onError={() => localized && setMissing((m) => ({ ...m, [shot.id]: true }))}
+              alt={t.shots.alt(shot.label)}
               loading="lazy"
             />
           </div>
           <p className="shot-caption">{shot.caption}</p>
+          {lang !== 'de' && missing[shot.id] && t.shots.note && (
+            <p className="shot-note">{t.shots.note}</p>
+          )}
         </div>
       </div>
     </section>

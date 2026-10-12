@@ -13,10 +13,10 @@ public enum NetworkClass: String, Codable, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .free:    return "frei"
-        case .metered: return "teuer"
-        case .limited: return "begrenzt"
-        case .unknown: return "unbekannt"
+        case .free:    return L("frei")
+        case .metered: return L("teuer")
+        case .limited: return L("begrenzt")
+        case .unknown: return L("unbekannt")
         }
     }
 
@@ -79,6 +79,21 @@ public struct NetworkIdentity: Codable, Sendable, Equatable {
         gatewayIP: "-", gatewayMAC: nil, label: "Offline")
 
     public var isOffline: Bool { id == "offline" }
+
+    /// Name für die Anzeige.
+    ///
+    /// Gespeichert wird der automatisch vergebene Name immer in der
+    /// Ausgangssprache. Steht er noch unverändert in der Datenbank, wird er
+    /// hier in der geltenden Sprache neu gebildet — ein vom Nutzer vergebener
+    /// Name („Hotel Adler") bleibt dagegen, wie er ist.
+    public var displayLabel: String {
+        if isOffline { return L("Offline") }
+        let canonical = NetworkIdentifier.defaultLabel(gateway: gatewayIP, linkType: linkType,
+                                                       interface: interface, localized: false)
+        guard label == canonical else { return label }
+        return NetworkIdentifier.defaultLabel(gateway: gatewayIP, linkType: linkType,
+                                              interface: interface, localized: true)
+    }
 }
 
 public struct NetworkRecord: Codable, Sendable {

@@ -20,15 +20,15 @@ func cmdStatus(_ args: Args) throws {
         case .unknown: return Term.dim
         }
     }()
-    print(Term.pad("Netz", 14) + identity.label
+    print(Term.pad(L("Netz"), 14) + identity.displayLabel
         + "  " + classColor("[\(cls.displayName)]")
         + Term.dim("  \(identity.interface) · \(identity.gatewayMAC ?? identity.gatewayIP)"))
 
-    let tierNote = state.manualTier != nil ? "manuell gesetzt"
-                 : (state.followNetwork ? "folgt dem Netz" : "Automatik aus")
-    print(Term.pad("Profil", 14) + Term.bold(tier.displayName)
+    let tierNote = state.manualTier != nil ? L("manuell gesetzt")
+                 : (state.followNetwork ? L("folgt dem Netz") : L("Automatik aus"))
+    print(Term.pad(L("Profil"), 14) + Term.bold(tier.displayName)
         + Term.dim("  (\(tierNote)) — \(state.summary(for: tier))")
-        + (state.isCustomized(tier) ? Term.dim("  [angepasst]") : ""))
+        + (state.isCustomized(tier) ? Term.dim("  [" + L("angepasst") + "]") : ""))
 
     if let status = try app.budget.status() {
         let light: String
@@ -37,15 +37,15 @@ func cmdStatus(_ args: Args) throws {
         case .yellow: light = Term.yellow("●")
         case .red:    light = Term.red("●")
         }
-        print(Term.pad("Budget", 14) + light + " "
-            + ByteFormat.short(status.remainingBytes) + " von "
-            + ByteFormat.short(status.budget.totalBytes) + " übrig"
-            + Term.dim("  ·  \(String(format: "%.1f", status.remainingDays)) Tage"))
-        print(Term.pad("", 14) + Term.dim("heute \(ByteFormat.short(status.usedTodayBytes))"
-            + " · Tagesbudget \(ByteFormat.short(status.dailyAllowance))"
-            + " · Hochrechnung \(ByteFormat.short(status.projectedToday))"))
+        print(Term.pad(L("Budget"), 14) + light + " "
+            + L("%@ von %@ übrig", ByteFormat.short(status.remainingBytes),
+                ByteFormat.short(status.budget.totalBytes))
+            + Term.dim("  ·  " + L("%@ Tage", String(format: "%.1f", status.remainingDays))))
+        print(Term.pad("", 14) + Term.dim(L("heute %@ · Tagesbudget %@ · Hochrechnung %@",
+            ByteFormat.short(status.usedTodayBytes), ByteFormat.short(status.dailyAllowance),
+            ByteFormat.short(status.projectedToday))))
     } else {
-        print(Term.pad("Budget", 14) + Term.dim("nicht gesetzt — 'connlimit budget set 5GB --until 2026-09-06'"))
+        print(Term.pad(L("Budget"), 14) + Term.dim(L("nicht gesetzt — 'connlimit budget set 5GB --until 2026-09-06'")))
     }
 
     let receipts = try app.store.openReceipts()
@@ -53,14 +53,14 @@ func cmdStatus(_ args: Args) throws {
 
     print()
     if receipts.isEmpty {
-        print(Term.dim("Keine aktiven Sperren."))
+        print(Term.dim(L("Keine aktiven Sperren.")))
     } else {
-        print(Term.bold("Aktive Sperren (\(receipts.count))"))
+        print(Term.bold(L("Aktive Sperren (%@)", receipts.count)))
         for r in receipts.sorted(by: { $0.serviceId < $1.serviceId }) {
-            let name = app.catalog.service(id: r.serviceId)?.name ?? r.serviceId
-            var detail = "\(r.lever.rawValue) · \(r.reason.rawValue)"
+            let name = app.catalog.serviceOrUnknown(id: r.serviceId).displayName
+            var detail = "\(r.lever.displayName) · \(r.reason.displayName)"
             if let expires = r.expiresAt {
-                detail += " · endet in \(remaining(expires))"
+                detail += " · " + L("endet in %@", remaining(expires))
             }
             print("  🔒 " + Term.pad(name, 26) + Term.dim(detail))
         }
@@ -68,40 +68,34 @@ func cmdStatus(_ args: Args) throws {
 
     if !grants.isEmpty {
         print()
-        print(Term.bold("Freigaben auf Zeit"))
+        print(Term.bold(L("Freigaben auf Zeit")))
         for g in grants {
-            let name = app.catalog.service(id: g.serviceId)?.name ?? g.serviceId
+            let name = app.catalog.serviceOrUnknown(id: g.serviceId).displayName
             let used = (try? app.store.serviceTotal(g.serviceId)) ?? 0
             let spent = max(0, used - g.bytesAtStart)
             print("  ⏱  " + Term.pad(name, 26)
-                + Term.dim("noch \(remaining(g.until)) · bisher \(ByteFormat.short(spent))"))
+                + Term.dim(L("noch %@ · bisher %@", remaining(g.until), ByteFormat.short(spent))))
         }
     }
 
     if !state.alwaysAllow.isEmpty || !state.alwaysBlock.isEmpty {
         print()
         if !state.alwaysAllow.isEmpty {
-            print(Term.dim("Immer erlaubt: ") + state.alwaysAllow.sorted().joined(separator: ", "))
+            print(Term.dim(L("Immer erlaubt: ")) + state.alwaysAllow.sorted().joined(separator: ", "))
         }
         if !state.alwaysBlock.isEmpty {
-            print(Term.dim("Immer gesperrt: ") + state.alwaysBlock.sorted().joined(separator: ", "))
+            print(Term.dim(L("Immer gesperrt: ")) + state.alwaysBlock.sorted().joined(separator: ", "))
         }
     }
 }
 
-func remaining(_ date: Date) -> String {
-    let s = max(0, date.timeIntervalSinceNow)
-    if s < 60 { return "\(Int(s)) s" }
-    if s < 3600 { return "\(Int(s / 60)) min" }
-    if s < 86400 { return String(format: "%.1f h", s / 3600) }
-    return String(format: "%.1f Tagen", s / 86400)
-}
+func remaining(_ date: Date) -> String { DisplayTime.remaining(until: date) }
 
 // MARK: - block / allow
 
 func cmdBlock(_ args: Args) throws {
     guard let query = args[1] else {
-        throw CLIError.usage("connlimit block <dienst> [--for 30m]")
+        throw CLIError.usage(L("connlimit block <dienst> [--for 30m]"))
     }
     let app = try App()
     let service = try app.service(matching: query)
@@ -110,7 +104,7 @@ func cmdBlock(_ args: Args) throws {
     var until: Date?
     if let forValue = args.value("for") {
         guard let duration = Parse.duration(forValue) else {
-            throw CLIError.usage("Dauer nicht verstanden: '\(forValue)' (z. B. 30m, 2h)")
+            throw CLIError.usage(L("Dauer nicht verstanden: '%@' (z. B. 30m, 2h)", forValue))
         }
         until = Date().addingTimeInterval(duration)
     }
@@ -122,9 +116,9 @@ func cmdBlock(_ args: Args) throws {
         reason: until == nil ? .manual : .timer,
         until: until)
 
-    var line = Term.red("🔒 ") + Term.bold(service.name) + " gesperrt"
-    line += Term.dim(" (Hebel: \(receipt.lever.rawValue))")
-    if let until { line += Term.dim(" · frei in \(remaining(until))") }
+    var line = Term.red("🔒 ") + L("%@ gesperrt", Term.bold(service.displayName))
+    line += Term.dim(" (" + L("Hebel: %@", receipt.lever.displayName) + ")")
+    if let until { line += Term.dim(" · " + L("frei in %@", remaining(until))) }
     print(line)
     if let note = receipt.lever.bluntnessNote {
         print(Term.dim("   ↳ \(note)"))
@@ -133,23 +127,22 @@ func cmdBlock(_ args: Args) throws {
 
 func cmdAllow(_ args: Args) throws {
     guard let query = args[1] else {
-        throw CLIError.usage("connlimit allow <dienst> [--for 30m]")
+        throw CLIError.usage(L("connlimit allow <dienst> [--for 30m]"))
     }
     let app = try App()
     let service = try app.service(matching: query)
 
     if let forValue = args.value("for") {
         guard let duration = Parse.duration(forValue) else {
-            throw CLIError.usage("Dauer nicht verstanden: '\(forValue)' (z. B. 30m, 2h)")
+            throw CLIError.usage(L("Dauer nicht verstanden: '%@' (z. B. 30m, 2h)", forValue))
         }
         let grant = try app.policy.grant(service, duration: duration)
-        print(Term.green("⏱  ") + Term.bold(service.name)
-            + " für \(remaining(grant.until)) freigegeben")
-        print(Term.dim("   Danach greift das Profil wieder. Der Verbrauch in diesem "
-                     + "Fenster wird ausgewiesen."))
+        print(Term.green("⏱  ") + L("%@ für %@ freigegeben", Term.bold(service.displayName),
+                                     remaining(grant.until)))
+        print(Term.dim("   " + L("Danach greift das Profil wieder. Der Verbrauch in diesem Fenster wird ausgewiesen.")))
     } else {
         try app.coordinator.unblock(serviceId: service.id)
-        print(Term.green("✓ ") + Term.bold(service.name) + " freigegeben")
+        print(Term.green("✓ ") + L("%@ freigegeben", Term.bold(service.displayName)))
     }
 }
 
@@ -157,10 +150,9 @@ func cmdUnblockAll(_ args: Args) throws {
     let app = try App()
     let count = try app.store.openReceipts().count
     try app.coordinator.emergencyRelease()
-    print(Term.green("✓ ") + "Alle Sperren aufgehoben (\(count))")
+    print(Term.green("✓ ") + L("Alle Sperren aufgehoben (%@)", count))
     if !Shell.isRoot {
-        print(Term.dim("   Hinweis: PF- und launchd-Sperren brauchen root — "
-                     + "ggf. 'sudo connlimit unblock-all' nachziehen."))
+        print(Term.dim("   " + L("Hinweis: PF- und launchd-Sperren brauchen root — ggf. 'sudo connlimit unblock-all' nachziehen.")))
     }
 }
 
@@ -179,7 +171,7 @@ func cmdProfile(_ args: Args) throws {
         let (_, cls) = try app.refreshNetwork()
         let state = app.store.policyState
         let tier = app.policy.effectiveTier(networkClass: cls)
-        print(Term.bold("Profil: \(tier.displayName)") + Term.dim(" — \(state.summary(for: tier))"))
+        print(Term.bold(L("Profil: ") + tier.displayName) + Term.dim(" — \(state.summary(for: tier))"))
         print()
         for t in PolicyTier.allCases {
             let mark = t == tier ? Term.green("●") : Term.dim("○")
@@ -192,13 +184,13 @@ func cmdProfile(_ args: Args) throws {
         }
         if !state.inconsistentTiers.isEmpty {
             print()
-            print(Term.yellow("  ⚠ ") + "Diese Stufen sperren weniger als eine niedrigere: "
-                + state.inconsistentTiers.map(\.displayName).joined(separator: ", "))
-            print(Term.dim("    Die Budget-Automatik stuft nur hoch — sie würde dabei lockern."))
+            print(Term.yellow("  ⚠ ") + L("Diese Stufen sperren weniger als eine niedrigere: %@",
+                state.inconsistentTiers.map(\.displayName).joined(separator: ", ")))
+            print(Term.dim("    " + L("Die Budget-Automatik stuft nur hoch — sie würde dabei lockern.")))
         }
         print()
-        print(Term.dim("connlimit profile <aus|sparsam|urlaub|notfall|auto>"))
-        print(Term.dim("connlimit profile edit <stufe> <klassen…>   Belegung ändern"))
+        print(Term.dim(L("connlimit profile <aus|sparsam|urlaub|notfall|auto>")))
+        print(Term.dim(L("connlimit profile edit <stufe> <klassen…>   Belegung ändern")))
         return
     }
 
@@ -207,15 +199,14 @@ func cmdProfile(_ args: Args) throws {
         state.manualTier = nil
         state.followNetwork = true
         try app.store.savePolicyState(state)
-        print(Term.green("✓ ") + "Profil folgt wieder dem Netz")
+        print(Term.green("✓ ") + L("Profil folgt wieder dem Netz"))
     } else {
         guard let tier = Parse.tier(arg) else {
-            throw CLIError.usage("Unbekanntes Profil '\(arg)'. "
-                               + "Erlaubt: aus, sparsam, urlaub, notfall, auto")
+            throw CLIError.usage(L("Unbekanntes Profil '%@'. Erlaubt: aus, sparsam, urlaub, notfall, auto", arg))
         }
         state.manualTier = tier
         try app.store.savePolicyState(state)
-        print(Term.green("✓ ") + "Profil: " + Term.bold(tier.displayName)
+        print(Term.green("✓ ") + L("Profil: ") + Term.bold(tier.displayName)
             + Term.dim(" — \(state.summary(for: tier))"))
     }
 
@@ -231,11 +222,11 @@ func cmdProfile(_ args: Args) throws {
 /// auf die Voreinstellung zurückgesetzt.
 private func profileEdit(_ app: App, _ args: Args) throws {
     guard let tierArg = args[2], let tier = Parse.tier(tierArg) else {
-        throw CLIError.usage("connlimit profile edit <sparsam|urlaub|notfall> <klassen…>\n"
-                           + "  Klassen: " + editableClassList())
+        throw CLIError.usage(L("connlimit profile edit <sparsam|urlaub|notfall> <klassen…>") + "\n"
+                           + "  " + L("Klassen: ") + editableClassList())
     }
     guard tier.isEditable else {
-        throw CLIError.usage("Die Stufe „Aus“ sperrt nichts — das ist nicht verhandelbar.")
+        throw CLIError.usage(L("Die Stufe „Aus“ sperrt nichts — das ist nicht verhandelbar."))
     }
 
     var state = app.store.policyState
@@ -243,7 +234,7 @@ private func profileEdit(_ app: App, _ args: Args) throws {
     if args.flag("default") || args.value("default") != nil {
         state.resetTier(tier)
         try app.store.savePolicyState(state)
-        print(Term.green("✓ ") + "\(tier.displayName) wieder auf Voreinstellung: "
+        print(Term.green("✓ ") + L("%@ wieder auf Voreinstellung: ", tier.displayName)
             + Term.dim(state.summary(for: tier)))
         try reapply(app)
         return
@@ -252,40 +243,40 @@ private func profileEdit(_ app: App, _ args: Args) throws {
     let rest = args.positional.dropFirst(3).flatMap { $0.split(separator: ",") }.map(String.init)
     guard !rest.isEmpty else {
         let classes = state.blockedClasses(for: tier)
-        print(Term.bold(tier.displayName) + Term.dim(state.isCustomized(tier) ? "  (angepasst)" : "  (Voreinstellung)"))
+        print(Term.bold(tier.displayName)
+            + Term.dim("  (" + (state.isCustomized(tier) ? L("angepasst") : L("Voreinstellung")) + ")"))
         for cls in ServiceClass.allCases where cls.isBlockable {
             let on = classes.contains(cls)
             print("  " + (on ? Term.red("■") : Term.dim("□")) + " "
                 + Term.pad(cls.displayName, 16) + Term.dim(cls.rawValue))
         }
         print()
-        print(Term.dim("Setzen (Komma oder Leerzeichen, ersetzt die ganze Belegung):"))
+        print(Term.dim(L("Setzen (Komma oder Leerzeichen, ersetzt die ganze Belegung):")))
         print(Term.dim("  connlimit profile edit \(tierArg) update backup media"))
-        print(Term.dim("Zurück auf Voreinstellung:"))
+        print(Term.dim(L("Zurück auf Voreinstellung:")))
         print(Term.dim("  connlimit profile edit \(tierArg) --default"))
-        print(Term.dim("Klassen: " + editableClassList()))
+        print(Term.dim(L("Klassen: ") + editableClassList()))
         return
     }
 
     var selected: Set<ServiceClass> = []
     for token in rest {
         guard let cls = parseClass(token) else {
-            throw CLIError.usage("Unbekannte Klasse '\(token)'. Erlaubt: " + editableClassList())
+            throw CLIError.usage(L("Unbekannte Klasse '%@'. Erlaubt: ", token) + editableClassList())
         }
         guard cls.isBlockable else {
-            throw CLIError.usage("„\(cls.displayName)“ ist hart geschützt und lässt sich "
-                               + "keiner Stufe zuordnen.")
+            throw CLIError.usage(L("„%@“ ist hart geschützt und lässt sich keiner Stufe zuordnen.",
+                                   cls.displayName))
         }
         selected.insert(cls)
     }
 
     state.setBlockedClasses(selected, for: tier)
     try app.store.savePolicyState(state)
-    print(Term.green("✓ ") + Term.bold(tier.displayName) + " sperrt jetzt: "
-        + state.summary(for: tier))
+    print(Term.green("✓ ") + L("%@ sperrt jetzt: %@", Term.bold(tier.displayName),
+                               state.summary(for: tier)))
     if state.inconsistentTiers.contains(tier) {
-        print(Term.yellow("  ⚠ ") + "Diese Stufe sperrt weniger als eine niedrigere — "
-            + "die Budget-Automatik würde beim Hochstufen lockern.")
+        print(Term.yellow("  ⚠ ") + L("Diese Stufe sperrt weniger als eine niedrigere — die Budget-Automatik würde beim Hochstufen lockern."))
     }
     try reapply(app)
 }
@@ -302,41 +293,43 @@ private func editableClassList() -> String {
     ServiceClass.allCases.filter(\.isBlockable).map(\.rawValue).joined(separator: ", ")
 }
 
-/// Klassen sind über die technische Kennung *und* den deutschen Namen
-/// erreichbar — beides steht in der Ausgabe, also muss beides funktionieren.
+/// Klassen sind über die technische Kennung *und* den angezeigten Namen
+/// erreichbar, deutsch wie englisch — beides steht in der Ausgabe, also muss
+/// beides funktionieren.
 private func parseClass(_ text: String) -> ServiceClass? {
     let t = text.trimmingCharacters(in: .whitespaces).lowercased()
     if let direct = ServiceClass(rawValue: t) { return direct }
     switch t {
     case "updates", "update":                 return .update
     case "backup", "backups", "sicherung":    return .backup
-    case "telemetrie":                        return .telemetry
-    case "medien":                            return .media
+    case "telemetrie", "telemetry":           return .telemetry
+    case "medien", "media":                   return .media
     case "cloud-sync", "cloud", "sync":       return .sync
     case "e-mail", "email", "mail":           return .mail
     case "browser":                           return .browser
     case "messenger", "messaging":            return .messaging
     case "sonstiges", "other":                return .other
+    case "systemkritisch":                    return .essential
     default:                                  return nil
     }
 }
 
 func printReport(_ report: PolicyEngine.SyncReport) {
     if !report.blocked.isEmpty {
-        print(Term.red("   gesperrt: ") + report.blocked.joined(separator: ", "))
+        print(Term.red("   " + L("gesperrt: ")) + report.blocked.joined(separator: ", "))
     }
     if !report.released.isEmpty {
-        print(Term.green("   freigegeben: ") + report.released.joined(separator: ", "))
+        print(Term.green("   " + L("freigegeben: ")) + report.released.joined(separator: ", "))
     }
     for f in report.failed {
         print(Term.yellow("   ⚠ \(f.service): ") + Term.dim(f.reason))
     }
     if !report.needsRoot.isEmpty {
-        print(Term.yellow("   ⚠ braucht sudo: ") + report.needsRoot.joined(separator: ", "))
-        print(Term.dim("     Diese Dienste laufen weiter. 'sudo connlimit profile …' sperrt sie wirklich."))
+        print(Term.yellow("   ⚠ " + L("braucht sudo: ")) + report.needsRoot.joined(separator: ", "))
+        print(Term.dim("     " + L("Diese Dienste laufen weiter. 'sudo connlimit profile …' sperrt sie wirklich.")))
     }
     if report.blocked.isEmpty && report.released.isEmpty
         && report.failed.isEmpty && report.needsRoot.isEmpty {
-        print(Term.dim("   keine Änderung"))
+        print(Term.dim("   " + L("keine Änderung")))
     }
 }

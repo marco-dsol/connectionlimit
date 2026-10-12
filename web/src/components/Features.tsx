@@ -1,61 +1,34 @@
+import type { PointerEvent } from 'react'
 import { useReveal } from '../hooks/useReveal'
+import { useLang } from '../i18n'
+import type { Card } from '../i18n/de'
 
-const FEATURES = [
-  {
-    glow: 'var(--green)',
-    icon: '👁',
-    title: 'Dauerbeobachtung',
-    text: 'Wer einmal Daten gebraucht hat, bleibt in der Liste — bis du zurücksetzt. Sonst könnte man genau das nicht sperren, was gerade still ist.',
-  },
-  {
-    glow: 'var(--amber)',
-    icon: '⚠',
-    title: 'Durchbrüche mit Zeitpunkt',
-    text: 'Fließen trotz gesetzter Sperre Daten, wird das mit Beginn, Ende und Menge protokolliert. Eine Sperre, die nicht hält, ist schlimmer als keine.',
-  },
-  {
-    glow: 'var(--blue)',
-    icon: '📈',
-    title: 'Menge über die Zeit',
-    text: 'Stunden- und Tagesfenster je Dienst. Stille Fenster stehen als Null da, statt zu fehlen — sonst sähe Ruhe wie schwacher Verkehr aus.',
-  },
-  {
-    glow: 'var(--green)',
-    icon: '📍',
-    title: 'Das Netz sagt, dass Urlaub ist',
-    text: 'Jedes Netz wird an der MAC-Adresse seines Routers wiedererkannt — ohne Ortungsdienste. Am Hotspot greift der Urlaubsmodus, zuhause fällt er von selbst weg.',
-  },
-  {
-    glow: 'var(--amber)',
-    icon: '🎚',
-    title: 'Profile, die du selbst festlegst',
-    text: 'Jede Stufe sperrt Klassen, keine einzelnen Dienste — so greift sie auch für Dienste, die es beim Anlegen noch nicht gab. Welche Klassen das sind, bestimmst du.',
-  },
-  {
-    glow: 'var(--red)',
-    icon: '🛟',
-    title: 'Sicherheitsnetz',
-    text: 'Quittung vor dem Eingriff, Aufräumen beim Start, im Zweifel freigeben. Und niemals den eigenen Prozess oder sein Terminal einfrieren.',
-  },
+/// Glanzfarbe und Symbol gehören zur Gestaltung, nicht zur Sprache — sie
+/// stehen hier, die Texte im Wörterbuch, in derselben Reihenfolge.
+const LOOK = [
+  { glow: 'var(--green)', icon: '👁' },
+  { glow: 'var(--amber)', icon: '⚠' },
+  { glow: 'var(--blue)', icon: '📈' },
+  { glow: 'var(--green)', icon: '📍' },
+  { glow: 'var(--amber)', icon: '🎚' },
+  { glow: 'var(--red)', icon: '🛟' },
 ]
 
 export function Features() {
+  const { t } = useLang()
   const head = useReveal<HTMLDivElement>()
   return (
     <section id="funktionen">
       <div className="wrap">
         <div className="section-head reveal" ref={head}>
-          <span className="eyebrow">Funktionen</span>
-          <h2>Sechs Dinge, die macOS nicht mitbringt</h2>
-          <p className="lead">
-            Gebaut für die Situation, in der Volumen knapp ist: Hotspot, Roaming,
-            Hotel-Tarif.
-          </p>
+          <span className="eyebrow">{t.features.eyebrow}</span>
+          <h2>{t.features.title}</h2>
+          <p className="lead">{t.features.lead}</p>
         </div>
 
         <div className="feature-grid">
-          {FEATURES.map((feature, index) => (
-            <Feature key={feature.title} feature={feature} delay={index * 70} />
+          {t.features.items.map((feature, index) => (
+            <Feature key={index} feature={feature} look={LOOK[index]} delay={index * 70} />
           ))}
         </div>
       </div>
@@ -63,11 +36,22 @@ export function Features() {
   )
 }
 
+/// Die Karte folgt dem Zeiger mit einem weichen Lichtkegel. Gesetzt werden
+/// nur zwei CSS-Variablen; das Licht selbst zeichnet CSS.
+function spotlight(event: PointerEvent<HTMLDivElement>) {
+  const node = event.currentTarget
+  const box = node.getBoundingClientRect()
+  node.style.setProperty('--mx', `${event.clientX - box.left}px`)
+  node.style.setProperty('--my', `${event.clientY - box.top}px`)
+}
+
 function Feature({
   feature,
+  look,
   delay,
 }: {
-  feature: (typeof FEATURES)[number]
+  feature: Card
+  look: (typeof LOOK)[number]
   delay: number
 }) {
   const ref = useReveal<HTMLDivElement>(delay)
@@ -75,9 +59,10 @@ function Feature({
     <div
       className="feature reveal"
       ref={ref}
-      style={{ ['--glow' as string]: feature.glow }}
+      onPointerMove={spotlight}
+      style={{ ['--glow' as string]: look.glow }}
     >
-      <div className="feature-ico" aria-hidden>{feature.icon}</div>
+      <div className="feature-ico" aria-hidden>{look.icon}</div>
       <h3>{feature.title}</h3>
       <p>{feature.text}</p>
     </div>

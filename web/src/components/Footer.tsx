@@ -1,6 +1,8 @@
 import { Logo } from './Logo'
+import { useLang } from '../i18n'
 
 export function Footer() {
+  const { t } = useLang()
   return (
     <footer>
       <div className="wrap foot">
@@ -8,10 +10,10 @@ export function Footer() {
           <Logo size={30} animated={false} />
           <div>
             <div className="brand-name">Connection<span>Limit</span></div>
-            <p>Sehen, wer Datenvolumen verbraucht — und es abdrehen.</p>
+            <p>{t.footer.tagline}</p>
           </div>
         </div>
-        <p>Gebaut für Hotspot, Roaming und Hotel-Tarif.</p>
+        <p>{t.footer.made}</p>
       </div>
     </footer>
   )

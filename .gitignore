@@ -22,3 +22,9 @@ web/public/download/*.sha256
 
 # TypeScript-Zwischenstand
 web/*.tsbuildinfo
+
+# API-Schlüssel
+.env
+
+# Werbespot — bleibt lokal
+marketing/

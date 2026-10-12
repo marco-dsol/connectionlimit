@@ -29,7 +29,8 @@ public struct NetworkIdentifier {
             linkType: linkType,
             gatewayIP: route.gateway,
             gatewayMAC: mac,
-            label: defaultLabel(gateway: route.gateway, linkType: linkType, interface: route.interface)
+            label: Self.defaultLabel(gateway: route.gateway, linkType: linkType,
+                                     interface: route.interface, localized: false)
         )
     }
 
@@ -108,12 +109,19 @@ public struct NetworkIdentifier {
         return .other
     }
 
-    func defaultLabel(gateway: String, linkType: LinkType, interface: String) -> String {
-        if isIOSHotspot(gateway: gateway) { return "iPhone-Hotspot" }
+    /// Automatischer Name eines Netzes.
+    ///
+    /// In der Datenbank steht immer die deutsche Fassung (`localized: false`);
+    /// `NetworkIdentity.displayLabel` erkennt sie daran wieder und zeigt sie in
+    /// der geltenden Sprache.
+    static func defaultLabel(gateway: String, linkType: LinkType, interface: String,
+                             localized: Bool) -> String {
+        let t: (String) -> String = localized ? { L($0) } : { $0 }
+        if gateway == "172.20.10.1" { return t("iPhone-Hotspot") }
         switch linkType {
-        case .wifi:  return "WLAN (\(gateway))"
-        case .wired: return "Kabel (\(interface))"
-        case .other: return "Netz (\(interface))"
+        case .wifi:  return t("WLAN") + " (\(gateway))"
+        case .wired: return t("Kabel") + " (\(interface))"
+        case .other: return t("Netz") + " (\(interface))"
         }
     }
 }

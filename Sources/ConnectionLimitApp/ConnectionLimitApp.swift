@@ -11,6 +11,9 @@ struct ConnectionLimitApp: App {
         MenuBarExtra {
             if Launcher.startupError == nil {
                 MenuView(model: model)
+                    // Texte entstehen beim Zeichnen; nach einem Sprachwechsel
+                    // muss deshalb alles neu gezeichnet werden.
+                    .id(model.language)
             } else {
                 FailureView(message: Launcher.startupError ?? "")
             }
@@ -22,6 +25,7 @@ struct ConnectionLimitApp: App {
         Window("ConnectionLimit", id: "main") {
             if Launcher.startupError == nil {
                 MainWindow(model: model)
+                    .id(model.language)
             } else {
                 FailureView(message: Launcher.startupError ?? "")
             }
@@ -74,12 +78,12 @@ struct FailureView: View {
     let message: String
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("ConnectionLimit konnte nicht starten", systemImage: "exclamationmark.triangle")
+            Label(L("ConnectionLimit konnte nicht starten"), systemImage: "exclamationmark.triangle")
                 .font(.headline)
             Text(message).font(.callout).textSelection(.enabled)
-            Text("Die Datenbank liegt unter \(Store.defaultPath).")
+            Text(L("Die Datenbank liegt unter %@.", Store.defaultPath))
                 .font(.caption).foregroundStyle(.secondary)
-            Button("Beenden") { NSApp.terminate(nil) }
+            Button(L("Beenden")) { NSApp.terminate(nil) }
         }
         .padding()
         .frame(width: 380)
@@ -101,7 +105,10 @@ enum Launcher {
             startupError = error.localizedDescription
             // Ein Platzhalter-Modell auf einer temporären Datenbank, damit die
             // Oberfläche überhaupt zeichnen kann und die Meldung sichtbar wird.
-            if let fallback = try? AppModel() { return fallback }
+            // Nicht gestartet: Es soll nichts messen und nichts sperren.
+            let scratch = FileManager.default.temporaryDirectory
+                .appendingPathComponent("connlimit-fallback-\(getpid()).db").path
+            if let fallback = try? AppModel(storePath: scratch) { return fallback }
             fatalError("ConnectionLimit: \(error.localizedDescription)")
         }
     }

@@ -23,7 +23,7 @@ Getrackte Dienste  ·  seit 25.08. 17:01  ·  Netz: iPhone von Marco [teuer]
   macOS Update          Updates        29.0 MB       —  vor 39 min ▁▁·········
 ```
 
-The interface and the source comments are in German; this document is not.
+The app and the command line speak **German and English** — switch in the menu bar (the `DE`/`EN` button), in the window's sidebar, or with `connlimit lang <de|en|auto>`. By default it follows the macOS language. The source comments are in German; this document is not.
 
 ## The idea
 
@@ -92,7 +92,8 @@ Requires macOS 14+ and Swift 6. Xcode is **not** needed.
 ```bash
 swift build -c release              # CLI
 ./Tools/make-app-bundle.sh          # menu bar app into dist/
-swift run connlimit-selftest        # test suite (129 checks)
+swift run connlimit-selftest        # test suite (161 checks)
+./Tools/check-l10n.sh               # every German text has an English translation
 ```
 
 `Tools/make-app-bundle.sh` assembles the `.app` bundle by hand, draws the icon
@@ -179,10 +180,12 @@ Application" from the keychain.
 
 ```bash
 connlimit doctor                    # what is available on this Mac?
-connlimit net set current teuer     # classify the current network
+connlimit net set current metered   # classify the current network (or: teuer)
 connlimit budget set 5GB --until 2026-09-06
-connlimit run -v                    # start the background service
+connlimit run -v                    # background service, if you don't use the app
 ```
+
+The menu bar app and `connlimit run` run the same schedule — measuring, switching the profile when the network changes, expiring timers, budget escalation. Use one of them, not both: two samplers writing into the same database would count every byte twice.
 
 As long as a network is **unclassified**, the tool deliberately blocks nothing.
 On first launch your home Wi-Fi is unknown too; freezing services there
@@ -202,7 +205,7 @@ unasked would be the wrong kind of surprise.
 | `block <service> [--for 30m]` | block, optionally with a timer |
 | `allow <service> [--for 30m]` | release; with `--for` the release expires |
 | `unblock-all` | emergency stop |
-| `profile <aus\|sparsam\|urlaub\|notfall\|auto>` | set the tier |
+| `profile <off\|frugal\|vacation\|emergency\|auto>` | set the tier (German names work too) |
 | `profile edit <tier> <classes…>` | define what a tier blocks |
 | `except <allow\|block\|clear> <service>` | permanent exception from the profile |
 | `reset <service> \| --all` | reset the persistent list |
@@ -210,6 +213,7 @@ unasked would be the wrong kind of surprise.
 | `budget [show\|set\|clear]` | travel budget |
 | `run [--read-only] [-v]` | background service |
 | `doctor` | availability check |
+| `lang [de\|en\|auto]` | language of app and terminal |
 
 The most useful move in daily life is `allow <service> --for 30m`: the service
 is released for a window and blocked again automatically afterwards. The tool
@@ -294,6 +298,8 @@ npm run build      # into web/dist/
 
 The site rebuilds the interface as real markup and plays through what the tool
 does, alongside the screenshots produced by `Tools/make-screenshots.sh`.
+
+It is bilingual too: a `DE | EN` switch in the navigation, `?lang=en` for links in a given language. English screenshots come from `Tools/make-screenshots.sh en` (into `web/public/screenshots/en/`); until they exist, the English page falls back to the German ones and says so.
 
 ## Licence
 

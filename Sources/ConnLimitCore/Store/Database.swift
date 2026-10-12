@@ -13,9 +13,9 @@ public final class Database {
 
         public var errorDescription: String? {
             switch self {
-            case .open(let m):            return "Datenbank konnte nicht geöffnet werden: \(m)"
-            case .prepare(let sql, let m): return "SQL-Fehler beim Vorbereiten: \(m)\n\(sql)"
-            case .step(let sql, let m):    return "SQL-Fehler bei der Ausführung: \(m)\n\(sql)"
+            case .open(let m):            return L("Datenbank konnte nicht geöffnet werden: %@", m)
+            case .prepare(let sql, let m): return L("SQL-Fehler beim Vorbereiten: %@", m) + "\n\(sql)"
+            case .step(let sql, let m):    return L("SQL-Fehler bei der Ausführung: %@", m) + "\n\(sql)"
             }
         }
     }

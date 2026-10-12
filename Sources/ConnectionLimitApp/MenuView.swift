@@ -47,15 +47,15 @@ struct MenuView: View {
                 HStack(spacing: 5) {
                     Image(systemName: model.networkClass.symbol)
                         .foregroundStyle(model.networkClass.tint)
-                    Text(model.network.label).fontWeight(.medium).lineLimit(1)
+                    Text(model.network.displayLabel).fontWeight(.medium).lineLimit(1)
                 }
                 HStack(spacing: 5) {
                     if model.currentRate > 0 { LivePulse() }
-                    Text("Heute \(ByteFormat.short(model.todayTotal))")
+                    Text(L("Heute %@", ByteFormat.short(model.todayTotal)))
                     Text("·")
                     Text(model.currentRate > 0
                          ? ByteFormat.rate(model.currentRate)
-                         : "gerade still")
+                         : L("gerade still"))
                         .foregroundStyle(model.currentRate > 0 ? Palette.active : Color.secondary)
                 }
                 .font(.caption).foregroundStyle(.secondary)
@@ -95,11 +95,27 @@ struct MenuView: View {
 
     private var tierPicker: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                SectionLabel(text: "Profil")
+            HStack(spacing: 5) {
+                SectionLabel(text: L("Profil"))
                 Spacer()
                 if model.policyState.isCustomized(model.tier) {
-                    Pill(text: "angepasst", tint: .secondary, symbol: "pencil")
+                    Pill(text: L("angepasst"), tint: .secondary, symbol: "pencil")
+                }
+                if model.isManualTier {
+                    // Von Hand gewählt — dann muss der Weg zurück sichtbar
+                    // sein. Sonst gälte ein einmal gewähltes „Aus" auch am
+                    // nächsten Hotspot noch.
+                    Button {
+                        model.followNetwork()
+                    } label: {
+                        Pill(text: L("von Hand"), tint: .orange, symbol: "hand.raised.fill")
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("Zurück zur Automatik: Die Stufe folgt wieder dem Netz (%@).",
+                            model.networkTier.displayName))
+                } else if model.networkClass != .unknown {
+                    Pill(text: L("automatisch"), tint: .secondary, symbol: "wand.and.stars")
+                        .help(L("Die Stufe folgt der Einstufung des Netzes."))
                 }
             }
 
@@ -115,6 +131,16 @@ struct MenuView: View {
 
             Text(model.tierSummary).font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if model.networkClass == .free,
+               let manual = model.policyState.manualTier, manual != .off {
+                // In freien Netzen greift bewusst keine Stufe. Ohne diesen
+                // Satz sähe es aus, als sei die Auswahl verloren gegangen.
+                Text(L("Freies Netz: Hier wird nie gesperrt. „%@“ gilt ab dem nächsten teuren Netz.",
+                       manual.displayName))
+                    .font(.caption2).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
     }
@@ -124,14 +150,16 @@ struct MenuView: View {
     private func budgetRow(_ status: BudgetStatus) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                SectionLabel(text: "Budget")
+                SectionLabel(text: L("Budget"))
                 Spacer()
-                Text("\(ByteFormat.short(status.remainingBytes)) übrig")
+                Text(L("%@ übrig", ByteFormat.short(status.remainingBytes)))
                     .font(.caption).fontWeight(.medium)
                     .foregroundStyle(status.light.tint)
             }
             UsageBar(fraction: 1 - status.remainingFraction, tint: status.light.tint)
-            Text("Heute \(ByteFormat.short(status.usedTodayBytes)) von \(ByteFormat.short(status.dailyAllowance)) · noch \(Int(status.remainingDays)) Tage")
+            Text(L("Heute %@ von %@ · noch %@", ByteFormat.short(status.usedTodayBytes),
+                   ByteFormat.short(status.dailyAllowance),
+                   relativeRemaining(status.budget.endsAt)))
                 .font(.caption2).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -145,17 +173,17 @@ struct MenuView: View {
     private var serviceSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                SectionLabel(text: "Dienste")
+                SectionLabel(text: L("Dienste"))
                 Spacer()
                 if model.activeCount > 0 {
-                    Text("\(model.activeCount) aktiv")
+                    Text(L("%@ aktiv", model.activeCount))
                         .font(.caption2).foregroundStyle(Palette.active)
                 }
             }
             .padding(.horizontal, 14).padding(.top, 8)
 
             if model.tracked.isEmpty {
-                Text("Noch nichts gesehen — die Messung läuft.")
+                Text(L("Noch nichts gesehen — die Messung läuft."))
                     .font(.caption).foregroundStyle(.secondary)
                     .padding(.horizontal, 14).padding(.bottom, 8)
             } else {
@@ -170,7 +198,7 @@ struct MenuView: View {
                         openWindow(id: "main")
                         NSApp.activate(ignoringOtherApps: true)
                     } label: {
-                        Text("… und \(model.tracked.count - rows.count) weitere")
+                        Text(L("… und %@ weitere", model.tracked.count - rows.count))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -187,7 +215,7 @@ struct MenuView: View {
         if !model.blocked.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 4) {
-                SectionLabel(text: "Gesperrt (\(model.blocked.count))")
+                SectionLabel(text: L("Gesperrt (%@)", model.blocked.count))
                     .padding(.horizontal, 14).padding(.top, 8)
 
                 ForEach(model.blocked) { item in
@@ -199,7 +227,7 @@ struct MenuView: View {
                             Text(subtitle(for: item)).font(.caption2).foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Frei") { model.unblock(item.id) }
+                        Button(L("Frei")) { model.unblock(item.id) }
                             .buttonStyle(.borderless).font(.caption)
                     }
                     .padding(.horizontal, 14).padding(.vertical, 2)
@@ -210,15 +238,9 @@ struct MenuView: View {
     }
 
     private func subtitle(for item: AppModel.BlockedItem) -> String {
-        var parts: [String] = []
-        switch item.reason {
-        case .profile: parts.append("durch Profil")
-        case .manual:  parts.append("manuell")
-        case .timer:   parts.append("befristet")
-        case .budget:  parts.append("Budget-Automatik")
-        }
+        var parts = [item.reason.displayName]
         if let expires = item.expiresAt {
-            parts.append("frei in \(relativeRemaining(expires))")
+            parts.append(L("frei in %@", relativeRemaining(expires)))
         }
         if let note = item.lever.bluntnessNote { parts.append(note) }
         return parts.joined(separator: " · ")
@@ -228,7 +250,7 @@ struct MenuView: View {
         if !model.grants.isEmpty {
             Divider()
             VStack(alignment: .leading, spacing: 4) {
-                SectionLabel(text: "Freigegeben auf Zeit")
+                SectionLabel(text: L("Freigegeben auf Zeit"))
                     .padding(.horizontal, 14).padding(.top, 8)
                 ForEach(model.grants) { grant in
                     HStack(spacing: 8) {
@@ -236,7 +258,8 @@ struct MenuView: View {
                             .foregroundStyle(Palette.active)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(grant.name).font(.callout)
-                            Text("noch \(relativeRemaining(grant.until)) · bisher \(ByteFormat.short(grant.spent))")
+                            Text(L("noch %@ · bisher %@", relativeRemaining(grant.until),
+                                   ByteFormat.short(grant.spent)))
                                 .font(.caption2).foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -255,12 +278,14 @@ struct MenuView: View {
             Button {
                 model.releaseAll()
             } label: {
-                Label("Alles freigeben", systemImage: "lock.open")
+                Label(L("Alles freigeben"), systemImage: "lock.open")
             }
             .buttonStyle(.borderless)
             .disabled(model.blocked.isEmpty)
 
             Spacer()
+
+            LanguageMenu(model: model, compact: true)
 
             Button {
                 openWindow(id: "main")
@@ -269,7 +294,7 @@ struct MenuView: View {
                 Image(systemName: "chart.bar.doc.horizontal")
             }
             .buttonStyle(.borderless)
-            .help("Fenster öffnen")
+            .help(L("Fenster öffnen"))
 
             Button {
                 NSApp.terminate(nil)
@@ -277,7 +302,7 @@ struct MenuView: View {
                 Image(systemName: "power")
             }
             .buttonStyle(.borderless)
-            .help("Beenden — offene Sperren werden vorher aufgehoben")
+            .help(L("Beenden — offene Sperren werden vorher aufgehoben"))
         }
         .padding(.horizontal, 14).padding(.top, 8)
     }
@@ -304,13 +329,13 @@ struct ServiceRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Text(usage.service.name)
+                    Text(usage.service.displayName)
                         .font(.callout).lineLimit(1)
                         .foregroundStyle(usage.isActive() ? Palette.active : Color.primary)
                     if usage.isLeaking() {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 9)).foregroundStyle(Palette.leak)
-                            .help("Trotz Sperre sind Daten geflossen")
+                            .help(L("Trotz Sperre sind Daten geflossen"))
                     }
                 }
                 UsageBar(fraction: fraction, tint: usage.tint)
@@ -345,18 +370,18 @@ struct ServiceRow: View {
         if usage.service.isBlockable {
             Menu {
                 if usage.isBlocked {
-                    Button("Freigeben") { model.unblock(usage.service.id) }
+                    Button(L("Freigeben")) { model.unblock(usage.service.id) }
                     Divider()
-                    Button("15 Minuten freigeben") { model.grant(usage.service, for: 900) }
-                    Button("1 Stunde freigeben") { model.grant(usage.service, for: 3600) }
+                    Button(L("15 Minuten freigeben")) { model.grant(usage.service, for: 900) }
+                    Button(L("1 Stunde freigeben")) { model.grant(usage.service, for: 3600) }
                 } else {
-                    Button("Jetzt sperren") { model.block(usage.service) }
+                    Button(L("Jetzt sperren")) { model.block(usage.service) }
                     Divider()
-                    Button("30 Minuten sperren") { model.block(usage.service, for: 1800) }
-                    Button("2 Stunden sperren") { model.block(usage.service, for: 7200) }
+                    Button(L("30 Minuten sperren")) { model.block(usage.service, for: 1800) }
+                    Button(L("2 Stunden sperren")) { model.block(usage.service, for: 7200) }
                 }
                 Divider()
-                Button("Aus der Liste entfernen") { model.resetTracking(usage.id) }
+                Button(L("Aus der Liste entfernen")) { model.resetTracking(usage.id) }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
@@ -364,7 +389,7 @@ struct ServiceRow: View {
             .fixedSize()
         } else {
             Image(systemName: "lock.shield").font(.caption).foregroundStyle(.tertiary)
-                .help("Systemkritisch — bewusst nicht sperrbar")
+                .help(L("Systemkritisch — bewusst nicht sperrbar"))
         }
     }
 }

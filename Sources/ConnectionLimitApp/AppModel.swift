@@ -32,6 +32,10 @@ final class AppModel: ObservableObject {
     /// brauchen. Muss sichtbar sein — sonst hält der Nutzer für gesperrt, was
     /// in Wahrheit weiterläuft.
     @Published private(set) var needsRoot: [String] = []
+    /// Sprache der Oberfläche. Ändert sie sich, zeichnen Menü und Fenster
+    /// vollständig neu — die Texte entstehen beim Zeichnen.
+    @Published private(set) var language: Language = L10n.language
+    @Published private(set) var languagePreference: LanguagePreference = L10n.storedPreference
 
     struct BlockedItem: Identifiable {
         let id: String
@@ -58,16 +62,29 @@ final class AppModel: ObservableObject {
     /// laden wäre pure Last ohne sichtbaren Unterschied.
     private var historyLoadedAt = Date.distantPast
 
-    init() throws {
-        store = try Store()
+    init(storePath: String = Store.defaultPath) throws {
+        store = try Store(path: storePath)
         catalog = ServiceCatalog.load(userFile: Store.catalogPath)
         var config = Agent.Config()
         config.sampleInterval = 2
+        // Die App zeigt das Netz an — ein Wechsel soll nach Sekunden sichtbar
+        // sein, nicht erst nach zehn.
+        config.networkInterval = 4
         agent = Agent(store: store, catalog: catalog, config: config)
     }
 
     func start() {
-        refreshNow()
+        work.async { [agent] in
+            // Aufräumen, was ein abgestürzter Lauf hinterlassen hat — vorher
+            // geschah das nur im Hintergrunddienst, nie in der App.
+            let recovered = Result { try agent.start() }
+            let snapshot = Snapshot(agent)
+            Task { @MainActor [weak self] in
+                if case .failure(let error) = recovered { self?.lastError = error.localizedDescription }
+                self?.historyLoadedAt = .distantPast
+                self?.reloadFromStore(snapshot)
+            }
+        }
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
@@ -80,14 +97,38 @@ final class AppModel: ObservableObject {
 
     // MARK: - Takt
 
+    /// Was die Oberfläche vom Agenten braucht, auf dessen Warteschlange
+    /// abgegriffen. Direkt aus dem Hauptthread gelesen liefe das Lesen mit
+    /// dem Schreiben des nächsten Messtakts um die Wette.
+    private struct Snapshot {
+        var network: NetworkIdentity
+        var networkClass: NetworkClass
+        var rates: [String: Double]
+
+        init(_ agent: Agent) {
+            (network, networkClass) = agent.network
+            rates = agent.rates
+        }
+    }
+
+    private var lastSnapshot: Snapshot?
+
     private func tick() {
         work.async { [agent] in
-            let sampled = Result { try agent.tickSampling() }
-            let refreshed = Result { try agent.refreshNetwork() }
+            // Derselbe Zeitplan wie im Hintergrunddienst: messen, Netzwechsel,
+            // Timer, Budget, Profil-Abgleich, Verdichten.
+            let report = agent.tick()
+            let snapshot = Snapshot(agent)
             Task { @MainActor [weak self] in
-                if case .failure(let error) = sampled { self?.lastError = error.localizedDescription }
-                if case .failure(let error) = refreshed { self?.lastError = error.localizedDescription }
-                self?.reloadFromStore()
+                guard let self else { return }
+                if let error = report.errors.first { self.lastError = error.localizedDescription }
+                if let policy = report.policy { self.needsRoot = policy.needsRoot }
+                if report.networkChanged { self.historyLoadedAt = .distantPast }
+                // `connlimit lang en` im Terminal schaltet auch die laufende
+                // App um — es ist dieselbe Einstellung.
+                let stored = L10n.storedPreference
+                if stored != self.languagePreference { self.setLanguage(stored) }
+                self.reloadFromStore(snapshot)
             }
         }
     }
@@ -96,22 +137,25 @@ final class AppModel: ObservableObject {
         work.async { [agent] in
             _ = try? agent.refreshNetwork()
             _ = try? agent.tickSampling()
+            let snapshot = Snapshot(agent)
             Task { @MainActor [weak self] in
                 self?.historyLoadedAt = .distantPast
-                self?.reloadFromStore()
+                self?.reloadFromStore(snapshot)
             }
         }
     }
 
-    private func reloadFromStore() {
+    private func reloadFromStore(_ fresh: Snapshot? = nil) {
+        if let fresh { lastSnapshot = fresh }
+        guard let snapshot = lastSnapshot else { return }
         let now = Date()
-        let (identity, cls) = agent.network
-        network = identity
-        networkClass = cls
+        network = snapshot.network
+        networkClass = snapshot.networkClass
+        let cls = snapshot.networkClass
         policyState = store.policyState
         tier = agent.policy.effectiveTier(networkClass: cls)
 
-        let rates = agent.rates
+        let rates = snapshot.rates
         let blockedIds = (try? store.blockedServiceIds()) ?? []
 
         tracked = (try? store.trackedUsage(catalog: catalog, rates: rates, now: now)) ?? []
@@ -138,13 +182,13 @@ final class AppModel: ObservableObject {
         recentEvents = (try? store.events(since: now.addingTimeInterval(-14 * 86400), limit: 120)) ?? []
 
         blocked = ((try? store.openReceipts()) ?? []).map { r in
-            BlockedItem(id: r.serviceId, name: catalog.serviceOrUnknown(id: r.serviceId).name,
+            BlockedItem(id: r.serviceId, name: catalog.serviceOrUnknown(id: r.serviceId).displayName,
                         lever: r.lever, reason: r.reason, expiresAt: r.expiresAt, receiptId: r.id)
         }.sorted { $0.name < $1.name }
 
         grants = ((try? store.grants()) ?? []).filter { !$0.isExpired }.map { g in
             let used = (try? store.serviceTotal(g.serviceId)) ?? 0
-            return GrantItem(id: g.id, name: catalog.serviceOrUnknown(id: g.serviceId).name,
+            return GrantItem(id: g.id, name: catalog.serviceOrUnknown(id: g.serviceId).displayName,
                              until: g.until, spent: max(0, used - g.bytesAtStart))
         }
 
@@ -198,13 +242,31 @@ final class AppModel: ObservableObject {
     func applyPolicy() {
         isEnforcing = true
         work.async { [agent] in
-            let report = (try? agent.tickPolicy()) ?? nil
+            let result = Result { try agent.tickPolicy() }
             Task { @MainActor [weak self] in
                 self?.isEnforcing = false
-                self?.needsRoot = report?.needsRoot ?? []
+                switch result {
+                case .success(let report): self?.needsRoot = report?.needsRoot ?? []
+                case .failure(let error):  self?.lastError = error.localizedDescription
+                }
                 self?.reloadFromStore()
             }
         }
+    }
+
+    /// Zurück zur Automatik: Die Stufe folgt wieder der Einstufung des Netzes.
+    func followNetwork() { setTier(nil) }
+
+    /// Die Stufe, die das Netz von sich aus verlangen würde.
+    var networkTier: PolicyTier { networkClass.defaultTier }
+
+    /// Wurde die Stufe von Hand gewählt (oder von der Budget-Automatik)?
+    var isManualTier: Bool { policyState.manualTier != nil }
+
+    func setLanguage(_ preference: LanguagePreference) {
+        L10n.setPreference(preference)
+        languagePreference = preference
+        language = L10n.language
     }
 
     func saveBudget(_ budget: Budget?) {
@@ -310,20 +372,25 @@ final class AppModel: ObservableObject {
     /// Der Hinweis, der ganz oben in der Menüleiste steht, wenn etwas zu tun ist.
     var callToAction: String? {
         if networkClass == .unknown && !network.isOffline {
-            return "Dieses Netz ist noch nicht eingestuft — bis dahin wird nichts gesperrt."
+            return L("Dieses Netz ist noch nicht eingestuft — bis dahin wird nichts gesperrt.")
         }
         if !needsRoot.isEmpty {
-            return "Läuft trotz Profil weiter, weil dafür sudo nötig ist: "
-                 + needsRoot.prefix(3).joined(separator: ", ")
-                 + (needsRoot.count > 3 ? " und \(needsRoot.count - 3) weitere" : "")
+            return L("Läuft trotz Profil weiter, weil dafür sudo nötig ist: %@",
+                     andMore(needsRoot))
         }
-        if let first = leaking.first {
-            return "Trotz Sperre aktiv: \(first.service.name)"
-                 + (leaking.count > 1 ? " und \(leaking.count - 1) weitere" : "")
+        if !leaking.isEmpty {
+            return L("Trotz Sperre aktiv: %@", andMore(leaking.map(\.service.displayName)))
         }
         if let status = budgetStatus, status.light == .red {
-            return "Verbrauch liegt über dem Tagesbudget."
+            return L("Verbrauch liegt über dem Tagesbudget.")
         }
         return nil
+    }
+
+    /// „A, B, C und 2 weitere" — die Liste bleibt eine Zeile lang.
+    private func andMore(_ names: [String], limit: Int = 3) -> String {
+        let shown = names.prefix(limit).joined(separator: ", ")
+        guard names.count > limit else { return shown }
+        return L("%@ und %@ weitere", shown, names.count - limit)
     }
 }

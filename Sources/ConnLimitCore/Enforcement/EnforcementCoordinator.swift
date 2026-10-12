@@ -37,13 +37,20 @@ public final class EnforcementCoordinator {
         guard service.serviceClass.isBlockable else {
             throw EnforcementError.notBlockable(service.name)
         }
-        // Bereits gesperrt: nur die Ablaufzeit nachziehen, nicht doppelt sperren.
-        if let existing = try receipts(for: service.id).first {
-            if let until, existing.expiresAt != until {
-                var updated = existing
-                updated.expiresAt = until
-                try store.save(updated)
-                return updated
+        // Bereits gesperrt: nicht doppelt sperren, aber die Absicht nachziehen.
+        //
+        // Wer einen Dienst von Hand sperrt, den gerade das Profil hält, meint
+        // „auch ohne Profil" — sonst höbe der nächste Profilwechsel die Sperre
+        // stillschweigend auf. Und „jetzt sperren" nach einer befristeten
+        // Sperre heißt „ab jetzt ohne Frist". Eine Profil-Sperre ändert
+        // dagegen nie eine bewusst gesetzte.
+        if var existing = try receipts(for: service.id).first {
+            guard reason != .profile else { return existing }
+            let upgraded = existing.reason == .profile || existing.reason != reason
+            if upgraded || existing.expiresAt != until {
+                existing.reason = reason
+                existing.expiresAt = until
+                try store.save(existing)
             }
             return existing
         }
@@ -90,14 +97,10 @@ public final class EnforcementCoordinator {
             try enforcer.revert(receipt)
         }
         try store.deleteReceipt(id: receipt.id)
+        // Sprachneutral gespeichert; `ServiceEvent.displayDetail` macht daraus
+        // „gesperrt seit …" in der Sprache, die gerade gilt.
         _ = try? store.logEvent(.released, serviceId: receipt.serviceId,
-                            detail: "gesperrt seit \(Self.stamp(receipt.createdAt))")
-    }
-
-    private static func stamp(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "dd.MM. HH:mm"
-        return f.string(from: date)
+                            detail: "since:\(Int64(receipt.createdAt.timeIntervalSince1970))")
     }
 
     public func unblockAll() throws {
@@ -127,15 +130,15 @@ public final class EnforcementCoordinator {
             var why = ""
 
             if receipt.isExpired {
-                shouldRelease = true; why = "Timer abgelaufen"
+                shouldRelease = true; why = L("Timer abgelaufen")
             } else if receipt.reason == .profile && activeTier == .off {
-                shouldRelease = true; why = "Profil ist nicht mehr aktiv"
+                shouldRelease = true; why = L("Profil ist nicht mehr aktiv")
             } else if receipt.lever == .processFreeze,
                       !receipt.payload.pids.contains(where: ProcessLookup.isAlive) {
-                shouldRelease = true; why = "Prozesse existieren nicht mehr"
+                shouldRelease = true; why = L("Prozesse existieren nicht mehr")
             } else if receipt.lever == .pfDomains, let net = receipt.networkId,
                       net != context.network.id {
-                shouldRelease = true; why = "Regel galt für ein anderes Netz"
+                shouldRelease = true; why = L("Regel galt für ein anderes Netz")
             }
 
             if shouldRelease {

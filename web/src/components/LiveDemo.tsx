@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { blockedIn, ROWS, type Phase } from './AppPanel'
+import { blockedIn, ROWS, type Phase, type RowId } from './AppPanel'
 import { drift, useTicker } from '../hooks/useTicker'
 import { bytes, clock, rate } from '../lib/format'
 import { useReveal } from '../hooks/useReveal'
+import { useLang } from '../i18n'
+import type { Dict } from '../i18n/de'
 
 /// Die Geschichte, die das Werkzeug erzählt — nachgespielt und anfassbar.
 ///
@@ -11,40 +13,18 @@ import { useReveal } from '../hooks/useReveal'
 /// wieder startet. Eine Demo, die weiterläuft, während man etwas ausprobiert,
 /// nimmt einem die Sache aus der Hand.
 
-const STEPS: { title: string; text: string }[] = [
-  {
-    title: 'Zuhause: alles läuft',
-    text: 'Freies WLAN, keine Sperren. Das Werkzeug misst nur — wer Daten braucht, landet in der Liste und bleibt dort stehen.',
-  },
-  {
-    title: 'Am Hotspot: das Netz sagt Bescheid',
-    text: 'Der Router wird an seiner MAC-Adresse wiedererkannt und ist als „teuer“ eingestuft. Der Urlaubsmodus greift von selbst — ohne dass jemand daran denken muss.',
-  },
-  {
-    title: 'Sperren greifen',
-    text: 'Cloud-Sync und Updates werden angehalten. Jede Sperre bekommt eine Quittung in der Datenbank, bevor sie gesetzt wird.',
-  },
-  {
-    title: 'Ein Durchbruch wird protokolliert',
-    text: 'OneDrive bewegt trotz Sperre Daten. Zeitpunkt und Menge stehen im Protokoll — eine Sperre, die nicht hält, ist schlimmer als keine.',
-  },
-]
-
+/// Ein Protokolleintrag hält Zeitpunkt und Bedeutung fest, nicht den
+/// fertigen Text — wer mitten in der Demo die Sprache wechselt, soll das
+/// ganze Protokoll in der neuen Sprache sehen.
 interface LogEntry {
   id: number
-  time: string
+  at: Date
   kind: 'blocked' | 'released' | 'attempt' | 'info'
-  text: string
-}
-
-const KIND_LABEL: Record<LogEntry['kind'], string> = {
-  blocked: 'gesperrt',
-  released: 'freigegeben',
-  attempt: 'trotz Sperre aktiv',
-  info: 'Netzwechsel',
+  text: (t: Dict) => string
 }
 
 export function LiveDemo() {
+  const { t } = useLang()
   const reveal = useReveal<HTMLDivElement>()
   const [phase, setPhase] = useState<Phase>(0)
   const [running, setRunning] = useState(true)
@@ -53,9 +33,9 @@ export function LiveDemo() {
   const [log, setLog] = useState<LogEntry[]>([])
   const logId = useRef(0)
 
-  const push = (kind: LogEntry['kind'], text: string) =>
+  const push = (kind: LogEntry['kind'], text: LogEntry['text']) =>
     setLog((entries) =>
-      [{ id: logId.current++, time: clock(), kind, text }, ...entries].slice(0, 7))
+      [{ id: logId.current++, at: new Date(), kind, text }, ...entries].slice(0, 7))
 
   // Automatischer Durchlauf.
   useEffect(() => {
@@ -73,35 +53,35 @@ export function LiveDemo() {
       setManual({})
       return
     }
-    if (phase === 1) push('info', 'iPhone von Marco · als teuer eingestuft → Urlaubsmodus')
+    if (phase === 1) push('info', (d) => d.demo.events.network)
     if (phase === 2) {
-      push('blocked', 'iCloud Fotos · Systemdienst anhalten')
-      window.setTimeout(() => push('blocked', 'OneDrive · App einfrieren'), 420)
-      window.setTimeout(() => push('blocked', 'macOS Update · Systemdienst anhalten'), 840)
+      push('blocked', (d) => d.demo.events.icloud)
+      const later = [
+        window.setTimeout(() => push('blocked', (d) => d.demo.events.onedrive), 420),
+        window.setTimeout(() => push('blocked', (d) => d.demo.events.update), 840),
+      ]
+      return () => later.forEach(window.clearTimeout)
     }
-    if (phase === 3) push('attempt', 'OneDrive · 1.4 MB seit 12 Minuten')
+    if (phase === 3) push('attempt', (d) => d.demo.events.leak)
   }, [phase])
 
   const isBlocked = (id: string) =>
     manual[id] !== undefined ? manual[id] : blockedIn(phase, id)
 
-  const toggle = (id: string, name: string) => {
+  const toggle = (id: RowId) => {
     setRunning(false)
     const next = !isBlocked(id)
     setManual((m) => ({ ...m, [id]: next }))
-    push(next ? 'blocked' : 'released', `${name} · von Hand`)
+    push(next ? 'blocked' : 'released', (d) => d.demo.events.manual(d.terms.rows[id]))
   }
 
   return (
     <section id="demo">
       <div className="wrap">
         <div className="section-head reveal" ref={reveal}>
-          <span className="eyebrow">Live-Demo</span>
-          <h2>Vier Schritte, wie es im Urlaub wirklich läuft</h2>
-          <p className="lead">
-            Kein Video, kein Bild: die Oberfläche selbst, nachgebaut und in Bewegung.
-            Sperren lässt sich hier auch von Hand — dann übernimmst du.
-          </p>
+          <span className="eyebrow">{t.demo.eyebrow}</span>
+          <h2>{t.demo.title}</h2>
+          <p className="lead">{t.demo.lead}</p>
         </div>
 
         <div className="demo-grid">
@@ -111,9 +91,9 @@ export function LiveDemo() {
 
           <div>
             <div className="demo-steps">
-              {STEPS.map((step, index) => (
+              {t.demo.steps.map((step, index) => (
                 <button
-                  key={step.title}
+                  key={index}
                   className={`step ${index === phase ? 'on' : ''}`}
                   onClick={() => {
                     setRunning(false)
@@ -133,7 +113,7 @@ export function LiveDemo() {
 
             <div className="card" style={{ marginTop: 14, padding: '14px 16px' }}>
               <div className="panel-label" style={{ marginBottom: 6 }}>
-                <span>Protokoll</span>
+                <span>{t.demo.log}</span>
                 <button
                   className="pill"
                   style={{ cursor: 'pointer', border: 0 }}
@@ -142,18 +122,17 @@ export function LiveDemo() {
                     setRunning((r) => !r)
                   }}
                 >
-                  {running ? '❚❚ anhalten' : '▶ weiterlaufen'}
+                  {running ? t.demo.pause : t.demo.resume}
                 </button>
               </div>
               {log.length === 0 ? (
                 <p style={{ fontSize: '0.78rem', color: 'var(--faint)', padding: '8px 0' }}>
-                  Noch nichts protokolliert. Sperren, Freigaben und Durchbrüche stehen hier
-                  mit Zeitpunkt.
+                  {t.demo.logEmpty}
                 </p>
               ) : (
                 log.map((entry) => (
                   <div className="log-row" key={entry.id}>
-                    <span className="log-time">{entry.time}</span>
+                    <span className="log-time">{clock(t.locale, entry.at)}</span>
                     <span
                       className={
                         entry.kind === 'attempt'
@@ -165,9 +144,9 @@ export function LiveDemo() {
                               : 'pill pill-blue'
                       }
                     >
-                      {KIND_LABEL[entry.kind]}
+                      {t.demo.kinds[entry.kind]}
                     </span>
-                    <span className="log-what">{entry.text}</span>
+                    <span className="log-what">{entry.text(t)}</span>
                   </div>
                 ))
               )}
@@ -187,8 +166,11 @@ function TrackedList({
 }: {
   phase: Phase
   isBlocked: (id: string) => boolean
-  onToggle: (id: string, name: string) => void
+  onToggle: (id: RowId) => void
 }) {
+  const { t } = useLang()
+  const w = t.terms
+  const d = t.demo.tiles
   const tick = useTicker(1000)
   const [rates, setRates] = useState<Record<string, number>>(() =>
     Object.fromEntries(ROWS.map((r) => [r.id, r.idle])),
@@ -230,18 +212,18 @@ function TrackedList({
   return (
     <div className="win">
       <div className="win-stats">
-        <Tile label="Heute" value={bytes(phase === 0 ? 3.11e8 : 4.42e8)} note="seit Mitternacht" />
+        <Tile label={d.today} value={bytes(phase === 0 ? 3.11e8 : 4.42e8)} note={d.sinceMidnight} />
         <Tile
-          label="Gerade"
+          label={d.now}
           value={totalRate > 0 ? rate(totalRate) : '—'}
-          note={`${Object.values(rates).filter((r) => r > 0).length} aktiv`}
+          note={w.active(Object.values(rates).filter((r) => r > 0).length)}
           tone={totalRate > 0 ? 'green' : undefined}
         />
-        <Tile label="Beobachtet" value={String(ROWS.length)} note="Dienste in der Liste" />
+        <Tile label={d.watched} value={String(ROWS.length)} note={d.inList} />
         <Tile
-          label="Gesperrt"
+          label={d.blocked}
           value={String(blockedCount)}
-          note={leaking > 0 ? `${leaking} mit Durchbruch` : 'keine Durchbrüche'}
+          note={leaking > 0 ? d.leaks(leaking) : d.noLeaks}
           tone={leaking > 0 ? 'amber' : blockedCount > 0 ? 'red' : undefined}
         />
       </div>
@@ -258,15 +240,15 @@ function TrackedList({
               <span className="svc-ico" aria-hidden>{blocked ? '🔒' : row.glyph}</span>
               <div className="svc-body">
                 <div className="svc-name">
-                  {row.name}
-                  {leak && <span className="pill pill-amber">trotz Sperre aktiv</span>}
-                  {blocked && !leak && <span className="pill pill-red">gesperrt</span>}
+                  {w.rows[row.id]}
+                  {leak && <span className="pill pill-amber">{w.despiteBlockLong}</span>}
+                  {blocked && !leak && <span className="pill pill-red">{w.blocked}</span>}
                 </div>
                 <div className="bar">
                   <i style={{ width: `${Math.min(100, (row.total / 4.1e8) * 100)}%` }} />
                 </div>
                 <div className="svc-meta">
-                  {row.cls} · {value > 0 ? 'gerade aktiv' : blocked ? 'angehalten' : 'zuletzt vor 4 min'}
+                  {w.classes[row.cls]} · {value > 0 ? w.activeNow : blocked ? w.paused : w.lastSeen}
                 </div>
               </div>
               <div className="spark" style={{ color }}>
@@ -276,13 +258,13 @@ function TrackedList({
               </div>
               <div className="svc-num">
                 <b>{bytes(row.total)}</b>
-                <span>{value > 0 ? rate(value) : 'still'}</span>
+                <span>{value > 0 ? rate(value) : w.idle}</span>
               </div>
               <button
                 className={`row-btn ${blocked ? 'free' : ''}`}
-                onClick={() => onToggle(row.id, row.name)}
+                onClick={() => onToggle(row.id)}
               >
-                {blocked ? 'Freigeben' : 'Sperren'}
+                {blocked ? w.unblock : w.block}
               </button>
             </div>
           )

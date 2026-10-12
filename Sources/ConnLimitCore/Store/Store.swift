@@ -274,7 +274,8 @@ public final class Store {
         try db.run("""
             INSERT INTO receipt (id, service_id, lever, payload, created_at, expires_at, network_id, reason)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, expires_at = excluded.expires_at
+            ON CONFLICT(id) DO UPDATE SET payload = excluded.payload,
+              expires_at = excluded.expires_at, reason = excluded.reason
             """,
             [.text(receipt.id), .text(receipt.serviceId), .text(receipt.lever.rawValue),
              .text(payload), .int(Int64(receipt.createdAt.timeIntervalSince1970)),

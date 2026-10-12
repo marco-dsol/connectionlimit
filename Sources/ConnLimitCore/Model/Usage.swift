@@ -108,15 +108,19 @@ public enum ByteFormat {
         return short(Int64(bytesPerSecond)) + "/s"
     }
 
-    /// Parst "5GB", "500 MB", "1.5 gb" → Bytes.
+    /// Parst "5GB", "500 MB", "1.5 gb", "1,5 GB" → Bytes.
+    ///
+    /// Das Komma zählt als Dezimaltrenner: Wer „1,5 GB" eintippt, meint
+    /// anderthalb Gigabyte — und sollte dafür keine Fehlermeldung bekommen.
     public static func parse(_ text: String) -> Int64? {
         let t = text.trimmingCharacters(in: .whitespaces).lowercased()
+            .replacingOccurrences(of: ",", with: ".")
         let units: [(String, Double)] = [("gb", 1e9), ("mb", 1e6), ("kb", 1e3), ("g", 1e9), ("m", 1e6), ("k", 1e3), ("b", 1)]
         for (suffix, factor) in units where t.hasSuffix(suffix) {
             let numPart = t.dropLast(suffix.count).trimmingCharacters(in: .whitespaces)
-            guard let v = Double(numPart) else { return nil }
+            guard let v = Double(numPart), v >= 0, v.isFinite else { return nil }
             return Int64(v * factor)
         }
-        return Double(t).map { Int64($0) }
+        return Double(t).flatMap { $0 >= 0 && $0.isFinite ? Int64($0) : nil }
     }
 }

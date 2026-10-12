@@ -24,19 +24,21 @@ struct App {
     func service(matching query: String) throws -> Service {
         let q = query.lowercased()
         if let exact = catalog.service(id: query) { return exact }
-        let byName = catalog.services.filter { $0.name.lowercased() == q }
+        // Name in beiden Sprachen: „iCloud Fotos" und „iCloud Photos" meinen
+        // denselben Dienst, egal wie das Terminal gerade eingestellt ist.
+        func names(_ s: Service) -> [String] { [s.name.lowercased(), s.displayName.lowercased()] }
+        let byName = catalog.services.filter { names($0).contains(q) }
         if let hit = byName.first { return hit }
 
         let partial = catalog.services.filter {
-            $0.id.lowercased().contains(q) || $0.name.lowercased().contains(q)
+            $0.id.lowercased().contains(q) || names($0).contains { $0.contains(q) }
         }
         if partial.count == 1 { return partial[0] }
         if partial.count > 1 {
-            let names = partial.prefix(8).map { "\($0.id) (\($0.name))" }.joined(separator: "\n  ")
-            throw CLIError.notFound("'\(query)' ist mehrdeutig:\n  \(names)")
+            let names = partial.prefix(8).map { "\($0.id) (\($0.displayName))" }.joined(separator: "\n  ")
+            throw CLIError.notFound(L("'%@' ist mehrdeutig:", query) + "\n  \(names)")
         }
-        throw CLIError.notFound("Kein Dienst gefunden für '\(query)'. "
-                              + "'connlimit services' zeigt alle.")
+        throw CLIError.notFound(L("Kein Dienst gefunden für '%@'. 'connlimit services' zeigt alle.", query))
     }
 
     /// Wie `service(matching:)`, sucht aber auch unter den beobachteten
@@ -47,17 +49,15 @@ struct App {
         let q = query.lowercased()
         let tracked = try store.trackedServices().map { catalog.serviceOrUnknown(id: $0.serviceId) }
         let matches = tracked.filter {
-            $0.id.lowercased() == q || $0.name.lowercased() == q
-                || $0.id.lowercased().contains(q) || $0.name.lowercased().contains(q)
+            $0.id.lowercased().contains(q) || $0.name.lowercased().contains(q)
+                || $0.displayName.lowercased().contains(q)
         }
         if matches.count == 1 { return matches[0] }
         if matches.count > 1 {
-            let names = matches.prefix(8).map { "\($0.id) (\($0.name))" }.joined(separator: "\n  ")
-            throw CLIError.notFound("'\(query)' ist mehrdeutig:\n  \(names)")
+            let names = matches.prefix(8).map { "\($0.id) (\($0.displayName))" }.joined(separator: "\n  ")
+            throw CLIError.notFound(L("'%@' ist mehrdeutig:", query) + "\n  \(names)")
         }
-        throw CLIError.notFound("Kein Dienst gefunden für '\(query)'. "
-                              + "'connlimit tracked' zeigt die beobachteten, "
-                              + "'connlimit services' den Katalog.")
+        throw CLIError.notFound(L("Kein Dienst gefunden für '%@'. 'connlimit tracked' zeigt die beobachteten, 'connlimit services' den Katalog.", query))
     }
 
     /// Netz einmalig ermitteln und in der Datenbank festhalten.

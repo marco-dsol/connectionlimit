@@ -21,7 +21,7 @@ public final class LaunchdFreezeEnforcer: Enforcer {
     public func apply(_ service: Service, spec: LeverSpec, receipt: inout EnforcementReceipt,
                       context: EnforcementContext) throws {
         guard case .launchdFreeze(let jobs) = spec else {
-            throw EnforcementError.leverFailed(.launchdFreeze, "falscher Hebel-Typ")
+            throw EnforcementError.leverFailed(.launchdFreeze, L("falscher Hebel-Typ"))
         }
         guard Shell.isRoot else { throw EnforcementError.needsRoot(.launchdFreeze) }
 
@@ -31,7 +31,7 @@ public final class LaunchdFreezeEnforcer: Enforcer {
             if r.ok { stopped.append(job) }
         }
         guard !stopped.isEmpty else {
-            throw EnforcementError.leverFailed(.launchdFreeze, "kein Job konnte gestoppt werden")
+            throw EnforcementError.leverFailed(.launchdFreeze, L("kein Job konnte gestoppt werden"))
         }
         receipt.payload.jobs = stopped
     }

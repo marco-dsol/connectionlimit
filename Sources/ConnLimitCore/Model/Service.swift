@@ -69,9 +69,20 @@ public enum LeverKind: String, Codable, Sendable {
     /// Wie grob wirkt der Hebel? Wird in der UI als Warnhinweis gezeigt.
     public var bluntnessNote: String? {
         switch self {
-        case .processFreeze: return "friert die App komplett ein, nicht nur ihr Netz"
-        case .pfDomains:     return "sperrt bekannte Ziel-Adressen; CDN-Adressen können ausweichen"
+        case .processFreeze: return L("friert die App komplett ein, nicht nur ihr Netz")
+        case .pfDomains:     return L("sperrt bekannte Ziel-Adressen; CDN-Adressen können ausweichen")
         case .launchdFreeze, .appPause, .neFilter: return nil
+        }
+    }
+
+    /// Wie der Hebel in Oberfläche und Terminal heißt.
+    public var displayName: String {
+        switch self {
+        case .launchdFreeze: return L("Systemdienst anhalten")
+        case .processFreeze: return L("App einfrieren")
+        case .pfDomains:     return L("Ziel-Adressen sperren")
+        case .appPause:      return L("Pause-Befehl der App")
+        case .neFilter:      return L("Netzwerkfilter")
         }
     }
 }
@@ -113,6 +124,13 @@ public struct Service: Codable, Sendable, Identifiable {
     }
 
     public var isBlockable: Bool { serviceClass.isBlockable && !levers.isEmpty }
+
+    /// Name für die Anzeige. Die eingebauten Dienste sind übersetzt; Einträge
+    /// aus der eigenen Katalogdatei und unbekannte Prozesse finden keine
+    /// Übersetzung und behalten ihren Namen.
+    public var displayName: String { L(name) }
+
+    public var displayNote: String? { note.map(L) }
 
     /// Dienst für einen Prozess, den der Katalog nicht kennt. Erscheint mit
     /// Verbrauch in der Liste, damit der Nutzer ihn einordnen kann.

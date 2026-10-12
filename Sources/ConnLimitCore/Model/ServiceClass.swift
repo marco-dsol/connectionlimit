@@ -17,16 +17,16 @@ public enum ServiceClass: String, Codable, CaseIterable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .essential: return "Systemkritisch"
-        case .update:    return "Updates"
-        case .backup:    return "Backup"
-        case .telemetry: return "Telemetrie"
-        case .media:     return "Medien"
-        case .sync:      return "Cloud-Sync"
-        case .mail:      return "E-Mail"
-        case .browser:   return "Browser"
-        case .messaging: return "Messenger"
-        case .other:     return "Sonstiges"
+        case .essential: return L("Systemkritisch")
+        case .update:    return L("Updates")
+        case .backup:    return L("Backup")
+        case .telemetry: return L("Telemetrie")
+        case .media:     return L("Medien")
+        case .sync:      return L("Cloud-Sync")
+        case .mail:      return L("E-Mail")
+        case .browser:   return L("Browser")
+        case .messaging: return L("Messenger")
+        case .other:     return L("Sonstiges")
         }
     }
 

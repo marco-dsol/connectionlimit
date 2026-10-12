@@ -54,10 +54,10 @@ public struct ServiceEvent: Sendable, Identifiable {
 
         public var displayName: String {
             switch self {
-            case .blocked:  return "gesperrt"
-            case .released: return "freigegeben"
-            case .attempt:  return "trotz Sperre aktiv"
-            case .reset:    return "Zählung zurückgesetzt"
+            case .blocked:  return L("gesperrt")
+            case .released: return L("freigegeben")
+            case .attempt:  return L("trotz Sperre aktiv")
+            case .reset:    return L("Zählung zurückgesetzt")
             }
         }
     }
@@ -84,6 +84,26 @@ public struct ServiceEvent: Sendable, Identifiable {
     }
 
     public var isEpisode: Bool { until.timeIntervalSince(at) >= 1 }
+
+    /// Die Zusatzangabe in lesbarer Form.
+    ///
+    /// Gespeichert wird sie sprachneutral — „processFreeze · manual" beim
+    /// Sperren, „since:<Zeitstempel>" beim Freigeben —, damit das Protokoll
+    /// nach einem Sprachwechsel nicht halb in der alten Sprache dasteht.
+    /// Einträge älterer Fassungen tragen schon fertigen Text und werden
+    /// unverändert gezeigt.
+    public var displayDetail: String? {
+        guard let detail, !detail.isEmpty else { return nil }
+        if detail.hasPrefix("since:"), let ts = TimeInterval(detail.dropFirst("since:".count)) {
+            return L("gesperrt seit %@", DisplayTime.dayAndTime(Date(timeIntervalSince1970: ts)))
+        }
+        let parts = detail.components(separatedBy: " · ")
+        if parts.count == 2, let lever = LeverKind(rawValue: parts[0]),
+           let reason = EnforcementReceipt.Reason(rawValue: parts[1]) {
+            return lever.displayName + " · " + reason.displayName
+        }
+        return detail
+    }
 }
 
 /// Ein Zeitfenster im Mengenverlauf.

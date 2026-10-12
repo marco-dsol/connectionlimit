@@ -34,13 +34,15 @@ public final class ServiceCatalog {
         if let userFile, let data = try? Data(contentsOf: userFile) {
             do {
                 let custom = try JSONDecoder().decode([Service].self, from: data)
-                var index = Dictionary(uniqueKeysWithValues: merged.map { ($0.id, $0) })
+                // Doppelte ids in der eigenen Datei sind ein Tippfehler, kein
+                // Grund abzustürzen: Der letzte Eintrag gewinnt.
+                var index = Dictionary(merged.map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
                 for s in custom { index[s.id] = s }
                 merged = Array(index.values)
             } catch {
                 FileHandle.standardError.write(
-                    "connlimit: Katalogdatei \(userFile.path) ignoriert — \(error)\n"
-                        .data(using: .utf8)!)
+                    ("connlimit: " + L("Katalogdatei %@ ignoriert — %@", userFile.path, "\(error)")
+                        + "\n").data(using: .utf8)!)
             }
         }
         return ServiceCatalog(services: merged.sorted { $0.id < $1.id })

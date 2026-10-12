@@ -3,6 +3,10 @@ import ConnLimitCore
 
 let t = Harness()
 
+// Die Prüfungen vergleichen deutsche Texte — unabhängig davon, in welcher
+// Sprache der Mac oder die App gerade eingestellt ist.
+L10n.language = .de
+
 // MARK: - nettop-Ausgabe
 
 t.suite("nettop-Ausgabe") {
@@ -287,5 +291,7 @@ t.suite("Prozesssuche") {
 checkTracking(t)
 checkSelfProtection(t)
 checkEnforcementRoundTrip(t)
+checkLocalization(t)
+checkIntentAndSchedule(t)
 
 t.finish()

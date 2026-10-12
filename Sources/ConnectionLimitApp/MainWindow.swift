@@ -20,6 +20,9 @@ struct MainWindow: View {
         case networks = "Netze"
         case budget = "Budget"
         var id: String { rawValue }
+        /// `rawValue` ist der gespeicherte Wert (`@AppStorage`) und bleibt
+        /// deshalb deutsch; angezeigt wird die Übersetzung.
+        var title: String { L(rawValue) }
         var symbol: String {
             switch self {
             case .usage:    return "chart.bar.xaxis"
@@ -35,13 +38,13 @@ struct MainWindow: View {
     var body: some View {
         NavigationSplitView {
             List(selection: tab) {
-                Section("Sehen") {
+                Section(L("Sehen")) {
                     row(.usage); row(.log)
                 }
-                Section("Begrenzen") {
+                Section(L("Begrenzen")) {
                     row(.profiles); row(.services); row(.budget)
                 }
-                Section("Einrichten") {
+                Section(L("Einrichten")) {
                     row(.networks)
                 }
             }
@@ -64,7 +67,7 @@ struct MainWindow: View {
     }
 
     private func row(_ item: Tab) -> some View {
-        Label(item.rawValue, systemImage: item.symbol).tag(item)
+        Label(item.title, systemImage: item.symbol).tag(item)
     }
 
     /// Zustand auf einen Blick, ohne die Menüleiste zu öffnen.
@@ -74,13 +77,15 @@ struct MainWindow: View {
             HStack(spacing: 6) {
                 Image(systemName: model.networkClass.symbol)
                     .foregroundStyle(model.networkClass.tint)
-                Text(model.network.label).lineLimit(1).font(.caption)
+                Text(model.network.displayLabel).lineLimit(1).font(.caption)
+                Spacer(minLength: 4)
+                LanguageMenu(model: model, compact: true)
             }
             HStack(spacing: 6) {
                 if model.currentRate > 0 { LivePulse() } else {
                     Circle().fill(Color.secondary.opacity(0.4)).frame(width: 7, height: 7)
                 }
-                Text(model.currentRate > 0 ? ByteFormat.rate(model.currentRate) : "still")
+                Text(model.currentRate > 0 ? ByteFormat.rate(model.currentRate) : L("still"))
                     .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 Spacer()
                 Pill(text: model.tier.displayName, tint: model.tier.tint,
@@ -108,11 +113,13 @@ struct UsageView: View {
         case blocked = "Gesperrt"
         case leaking = "Durchbrüche"
         var id: String { rawValue }
+        var title: String { L(rawValue) }
     }
 
     private var rows: [ServiceUsage] {
         model.tracked.filter { usage in
             let matchesSearch = search.isEmpty
+                || usage.service.displayName.localizedCaseInsensitiveContains(search)
                 || usage.service.name.localizedCaseInsensitiveContains(search)
             guard matchesSearch else { return false }
             switch filter {
@@ -151,13 +158,12 @@ struct UsageView: View {
         .sheet(item: $detail) { target in
             ServiceDetailSheet(serviceId: target.id, model: model)
         }
-        .confirmationDialog("Zählung für alle Dienste zurücksetzen?",
+        .confirmationDialog(L("Zählung für alle Dienste zurücksetzen?"),
                             isPresented: $confirmReset, titleVisibility: .visible) {
-            Button("Liste leeren", role: .destructive) { model.resetTracking() }
-            Button("Abbrechen", role: .cancel) {}
+            Button(L("Liste leeren"), role: .destructive) { model.resetTracking() }
+            Button(L("Abbrechen"), role: .cancel) {}
         } message: {
-            Text("Die Liste beginnt von vorn. Messdaten und Budget bleiben unberührt — "
-               + "Dienste erscheinen wieder, sobald sie das nächste Mal Daten brauchen.")
+            Text(L("Die Liste beginnt von vorn. Messdaten und Budget bleiben unberührt — Dienste erscheinen wieder, sobald sie das nächste Mal Daten brauchen."))
         }
     }
 
@@ -167,13 +173,13 @@ struct UsageView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Verbrauch").font(.title2).fontWeight(.semibold)
+                    Text(L("Verbrauch")).font(.title2).fontWeight(.semibold)
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 HStack(spacing: 6) {
                     Image(systemName: model.networkClass.symbol)
-                    Text(model.network.label)
+                    Text(model.network.displayLabel)
                 }
                 .font(.callout)
                 .foregroundStyle(model.networkClass.tint)
@@ -181,19 +187,19 @@ struct UsageView: View {
             }
 
             HStack(spacing: 10) {
-                StatTile(title: "Heute", value: ByteFormat.short(model.todayTotal),
-                         note: "seit Mitternacht", symbol: "sun.horizon")
-                StatTile(title: "Gerade",
+                StatTile(title: L("Heute"), value: ByteFormat.short(model.todayTotal),
+                         note: L("seit Mitternacht"), symbol: "sun.horizon")
+                StatTile(title: L("Gerade"),
                          value: model.currentRate > 0 ? ByteFormat.rate(model.currentRate) : "—",
-                         note: "\(model.activeCount) aktiv",
+                         note: L("%@ aktiv", model.activeCount),
                          tint: model.currentRate > 0 ? Palette.active : .primary,
                          symbol: "waveform")
-                StatTile(title: "Beobachtet", value: "\(model.tracked.count)",
-                         note: "Dienste in der Liste", symbol: "eye")
-                StatTile(title: "Gesperrt", value: "\(model.blocked.count)",
+                StatTile(title: L("Beobachtet"), value: "\(model.tracked.count)",
+                         note: L("Dienste in der Liste"), symbol: "eye")
+                StatTile(title: L("Gesperrt"), value: "\(model.blocked.count)",
                          note: model.leaking.isEmpty
-                             ? "keine Durchbrüche"
-                             : "\(model.leaking.count) mit Durchbruch",
+                             ? L("keine Durchbrüche")
+                             : L("%@ mit Durchbruch", model.leaking.count),
                          tint: model.leaking.isEmpty
                              ? (model.blocked.isEmpty ? .primary : Palette.blocked)
                              : Palette.leak,
@@ -204,9 +210,9 @@ struct UsageView: View {
     }
 
     private var subtitle: String {
-        var parts = ["Jeder Dienst bleibt in der Liste, bis du ihn zurücksetzt"]
+        var parts = [L("Jeder Dienst bleibt in der Liste, bis du ihn zurücksetzt")]
         if let since = model.trackingSince {
-            parts.append("gezählt seit \(dateStamp(since))")
+            parts.append(L("gezählt seit %@", dateStamp(since)))
         }
         return parts.joined(separator: " · ")
     }
@@ -215,7 +221,7 @@ struct UsageView: View {
         HStack(spacing: 10) {
             HStack(spacing: 5) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
-                TextField("Suchen", text: $search)
+                TextField(L("Suchen"), text: $search)
                     .textFieldStyle(.plain)
                 if !search.isEmpty {
                     Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
@@ -227,7 +233,7 @@ struct UsageView: View {
             .frame(minWidth: 130, idealWidth: 180, maxWidth: 220)
 
             Picker("", selection: $filter) {
-                ForEach(Filter.allCases) { f in Text(f.rawValue).tag(f) }
+                ForEach(Filter.allCases) { f in Text(f.title).tag(f) }
             }
             .pickerStyle(.segmented).labelsHidden().fixedSize()
 
@@ -236,11 +242,11 @@ struct UsageView: View {
             Button {
                 confirmReset = true
             } label: {
-                Label("Zurücksetzen", systemImage: "arrow.counterclockwise")
+                Label(L("Zurücksetzen"), systemImage: "arrow.counterclockwise")
             }
             .controlSize(.small)
             .disabled(model.tracked.isEmpty)
-            .help("Leert die Liste. Messdaten und Budget bleiben erhalten.")
+            .help(L("Leert die Liste. Messdaten und Budget bleiben erhalten."))
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
     }
@@ -249,9 +255,8 @@ struct UsageView: View {
         VStack(spacing: 8) {
             Spacer()
             Image(systemName: "chart.bar.xaxis").font(.largeTitle).foregroundStyle(.tertiary)
-            Text("Noch nichts gesehen").font(.headline)
-            Text("Die Messung läuft, solange diese App geöffnet ist. Wer Daten braucht, "
-               + "landet hier — und bleibt stehen, auch wenn er wieder still ist.")
+            Text(L("Noch nichts gesehen")).font(.headline)
+            Text(L("Die Messung läuft, solange diese App geöffnet ist. Wer Daten braucht, landet hier — und bleibt stehen, auch wenn er wieder still ist."))
                 .font(.caption).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center).frame(maxWidth: 380)
             Spacer()
@@ -262,10 +267,10 @@ struct UsageView: View {
     private var filteredEmptyState: some View {
         VStack(spacing: 6) {
             Spacer()
-            Text(filter == .leaking ? "Keine Durchbrüche" : "Kein Treffer")
+            Text(filter == .leaking ? L("Keine Durchbrüche") : L("Kein Treffer"))
                 .font(.headline).foregroundStyle(.secondary)
             if filter == .leaking {
-                Text("Es ist noch nie etwas durch eine gesetzte Sperre gekommen.")
+                Text(L("Es ist noch nie etwas durch eine gesetzte Sperre gekommen."))
                     .font(.caption).foregroundStyle(.tertiary)
             }
             Spacer()
@@ -289,18 +294,18 @@ struct TrackedRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(usage.service.name)
+                    Text(usage.service.displayName)
                         .fontWeight(.medium)
                         .foregroundStyle(usage.isActive() ? Palette.active : Color.primary)
                         .lineLimit(1)
                     if usage.isLeaking() {
-                        Pill(text: "trotz Sperre", tint: Palette.leak,
+                        Pill(text: L("trotz Sperre"), tint: Palette.leak,
                              symbol: "exclamationmark.triangle.fill")
                     } else if usage.isBlocked {
-                        Pill(text: "gesperrt", tint: Palette.blocked, symbol: "lock.fill")
+                        Pill(text: L("gesperrt"), tint: Palette.blocked, symbol: "lock.fill")
                     }
                     if usage.service.isUnknown {
-                        Pill(text: "unbekannt", tint: .secondary)
+                        Pill(text: L("unbekannt"), tint: .secondary)
                     }
                 }
                 UsageBar(fraction: Double(usage.total) / Double(max(1, peak)), tint: usage.tint)
@@ -319,7 +324,7 @@ struct TrackedRow: View {
                     .monospacedDigit().fontWeight(.semibold)
                 Text(usage.isActive() && usage.rate > 0
                      ? ByteFormat.rate(usage.rate)
-                     : "heute \(ByteFormat.short(usage.todayBytes))")
+                     : L("heute %@", ByteFormat.short(usage.todayBytes)))
                     .font(.caption2).monospacedDigit()
                     .foregroundStyle(usage.rate > 0 ? Palette.active : Color.secondary)
             }
@@ -332,15 +337,15 @@ struct TrackedRow: View {
         .onHover { hovering = $0 }
         .onTapGesture(count: 2) { onDetail() }
         .contextMenu {
-            Button("Details und Verlauf …") { onDetail() }
+            Button(L("Details und Verlauf …")) { onDetail() }
             Divider()
             if usage.service.isBlockable {
-                Button(usage.isBlocked ? "Freigeben" : "Jetzt sperren") { toggleBlock() }
-                Button("30 Minuten sperren") { model.block(usage.service, for: 1800) }
-                Button("1 Stunde freigeben") { model.grant(usage.service, for: 3600) }
+                Button(usage.isBlocked ? L("Freigeben") : L("Jetzt sperren")) { toggleBlock() }
+                Button(L("30 Minuten sperren")) { model.block(usage.service, for: 1800) }
+                Button(L("1 Stunde freigeben")) { model.grant(usage.service, for: 3600) }
                 Divider()
             }
-            Button("Aus der Liste entfernen") { model.resetTracking(usage.id) }
+            Button(L("Aus der Liste entfernen")) { model.resetTracking(usage.id) }
         }
     }
 
@@ -367,25 +372,26 @@ struct TrackedRow: View {
     private var caption: String {
         var parts = [usage.service.serviceClass.displayName]
         if usage.rate > 0 {
-            parts.append("gerade aktiv")
+            parts.append(L("gerade aktiv"))
         } else if let last = usage.lastSeen {
-            parts.append("zuletzt \(relativeAgo(last))")
+            parts.append(L("zuletzt %@", relativeAgo(last)))
         }
         if usage.attemptCount > 0 {
-            parts.append("\(usage.attemptCount)× trotz Sperre · \(ByteFormat.short(usage.attemptBytes))")
+            parts.append(L("%@× trotz Sperre · %@", usage.attemptCount,
+                           ByteFormat.short(usage.attemptBytes)))
         }
         return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private var actions: some View {
         if usage.service.isBlockable {
-            Button(usage.isBlocked ? "Freigeben" : "Sperren") { toggleBlock() }
+            Button(usage.isBlocked ? L("Freigeben") : L("Sperren")) { toggleBlock() }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .tint(usage.isBlocked ? Palette.active : Palette.blocked)
         } else {
             Image(systemName: "lock.shield").foregroundStyle(.tertiary)
-                .help("Systemkritisch — bewusst nicht sperrbar")
+                .help(L("Systemkritisch — bewusst nicht sperrbar"))
                 .frame(width: 62)
         }
     }
@@ -438,7 +444,7 @@ struct ServiceDetailSheet: View {
                     .foregroundStyle(usage?.tint ?? .secondary)
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text(service.name).font(.title3).fontWeight(.semibold)
+                Text(service.displayName).font(.title3).fontWeight(.semibold)
                 HStack(spacing: 6) {
                     Text(service.serviceClass.displayName)
                         .font(.caption).foregroundStyle(.secondary)
@@ -448,50 +454,51 @@ struct ServiceDetailSheet: View {
                 }
             }
             Spacer()
-            Button("Fertig") { dismiss() }.keyboardShortcut(.defaultAction)
+            Button(L("Fertig")) { dismiss() }.keyboardShortcut(.defaultAction)
         }
         .padding(16)
     }
 
     private var numbers: some View {
         HStack(spacing: 10) {
-            StatTile(title: "Gesamt", value: ByteFormat.short(usage?.total ?? 0),
-                     note: usage?.firstSeen.map { "seit \(dateStamp($0))" } ?? "—")
-            StatTile(title: "Heute", value: ByteFormat.short(usage?.todayBytes ?? 0),
-                     note: "seit Mitternacht")
-            StatTile(title: "Empfangen", value: ByteFormat.short(usage?.bytesIn ?? 0),
-                     note: "↑ \(ByteFormat.short(usage?.bytesOut ?? 0)) gesendet")
+            StatTile(title: L("Gesamt"), value: ByteFormat.short(usage?.total ?? 0),
+                     note: usage?.firstSeen.map { L("seit %@", dateStamp($0)) } ?? "—")
+            StatTile(title: L("Heute"), value: ByteFormat.short(usage?.todayBytes ?? 0),
+                     note: L("seit Mitternacht"))
+            StatTile(title: L("Empfangen"), value: ByteFormat.short(usage?.bytesIn ?? 0),
+                     note: L("↑ %@ gesendet", ByteFormat.short(usage?.bytesOut ?? 0)))
         }
     }
 
     private var chart: some View {
-        Card(title: "Menge über die Zeit",
+        Card(title: L("Menge über die Zeit"),
              subtitle: range == 24
-                ? "Stundenfenster der letzten 24 Stunden"
-                : "Tagesfenster der letzten 7 Tage") {
+                ? L("Stundenfenster der letzten 24 Stunden")
+                : L("Tagesfenster der letzten 7 Tage")) {
             let buckets = model.history(for: serviceId,
                                         hours: range,
                                         bucket: range == 24 ? 3600 : 86400)
             Picker("", selection: $range) {
-                Text("24 Stunden").tag(24)
-                Text("7 Tage").tag(24 * 7)
+                Text(L("24 Stunden")).tag(24)
+                Text(L("7 Tage")).tag(24 * 7)
             }
             .pickerStyle(.segmented).labelsHidden().fixedSize()
 
             if buckets.contains(where: { $0.total > 0 }) {
                 Sparkline(buckets: buckets, tint: usage?.tint ?? .accentColor,
-                          height: 90, barWidth: range == 24 ? 12 : 34)
+                          height: 90, barWidth: range == 24 ? 12 : 34,
+                          bucketLength: range == 24 ? 3600 : 86400)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack {
                     Text(buckets.first.map { dateStamp($0.start) } ?? "")
                     Spacer()
-                    Text("Spitze \(ByteFormat.short(buckets.map(\.total).max() ?? 0)) je Fenster")
+                    Text(L("Spitze %@ je Fenster", ByteFormat.short(buckets.map(\.total).max() ?? 0)))
                     Spacer()
-                    Text("jetzt")
+                    Text(L("jetzt"))
                 }
                 .font(.caption2).foregroundStyle(.tertiary)
             } else {
-                Text("Keine Messdaten in diesem Zeitraum.")
+                Text(L("Keine Messdaten in diesem Zeitraum."))
                     .font(.caption).foregroundStyle(.secondary)
                     .frame(height: 90, alignment: .center)
             }
@@ -499,11 +506,11 @@ struct ServiceDetailSheet: View {
     }
 
     private var protocolCard: some View {
-        Card(title: "Protokoll",
-             subtitle: "Zeitpunkte von Sperre, Freigabe und Verkehr trotz Sperre") {
+        Card(title: L("Protokoll"),
+             subtitle: L("Zeitpunkte von Sperre, Freigabe und Verkehr trotz Sperre")) {
             let events = model.events(for: serviceId)
             if events.isEmpty {
-                Text("Noch nichts protokolliert.")
+                Text(L("Noch nichts protokolliert."))
                     .font(.caption).foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
@@ -516,9 +523,9 @@ struct ServiceDetailSheet: View {
     }
 
     private var leverCard: some View {
-        Card(title: "Hebel", subtitle: "Womit dieser Dienst gestoppt wird") {
+        Card(title: L("Hebel"), subtitle: L("Womit dieser Dienst gestoppt wird")) {
             if service.levers.isEmpty {
-                Text("Kein Hebel hinterlegt — dieser Dienst lässt sich nicht sperren.")
+                Text(L("Kein Hebel hinterlegt — dieser Dienst lässt sich nicht sperren."))
                     .font(.caption).foregroundStyle(.secondary)
             } else {
                 VStack(alignment: .leading, spacing: 6) {
@@ -528,12 +535,12 @@ struct ServiceDetailSheet: View {
                                 .font(.caption2)
                                 .foregroundStyle(lever.kind.needsRoot ? Palette.leak : .secondary)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(leverName(lever.kind)).font(.callout)
+                                Text(lever.kind.displayName).font(.callout)
                                 if let note = lever.kind.bluntnessNote {
                                     Text(note).font(.caption2).foregroundStyle(.secondary)
                                 }
                                 if lever.kind.needsRoot {
-                                    Text("braucht sudo").font(.caption2)
+                                    Text(L("braucht sudo")).font(.caption2)
                                         .foregroundStyle(Palette.leak)
                                 }
                             }
@@ -541,27 +548,17 @@ struct ServiceDetailSheet: View {
                     }
                 }
             }
-            if let note = service.note {
+            if let note = service.displayNote {
                 Text(note).font(.caption2).foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Divider()
-            Button("Diesen Dienst aus der Liste entfernen", role: .destructive) {
+            Button(L("Diesen Dienst aus der Liste entfernen"), role: .destructive) {
                 model.resetTracking(serviceId)
                 dismiss()
             }
             .controlSize(.small)
         }
-    }
-}
-
-func leverName(_ kind: LeverKind) -> String {
-    switch kind {
-    case .launchdFreeze: return "Systemdienst anhalten"
-    case .processFreeze: return "App einfrieren"
-    case .pfDomains:     return "Ziel-Adressen sperren"
-    case .appPause:      return "Pause-Befehl der App"
-    case .neFilter:      return "Netzwerkfilter"
     }
 }
 
@@ -579,17 +576,16 @@ struct LogView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Protokoll").font(.title2).fontWeight(.semibold)
-                    Text("Wann etwas gesperrt oder freigegeben wurde — und wann trotz "
-                       + "gesetzter Sperre Daten geflossen sind.")
+                    Text(L("Protokoll")).font(.title2).fontWeight(.semibold)
+                    Text(L("Wann etwas gesperrt oder freigegeben wurde — und wann trotz gesetzter Sperre Daten geflossen sind."))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 HStack {
-                    Toggle("Nur Durchbrüche", isOn: $onlyAttempts)
+                    Toggle(L("Nur Durchbrüche"), isOn: $onlyAttempts)
                         .toggleStyle(.switch).controlSize(.small)
                     Spacer()
-                    Text("\(events.count) Einträge · 14 Tage")
+                    Text(L("%@ Einträge · 14 Tage", events.count))
                         .font(.caption).foregroundStyle(.tertiary)
                 }
             }
@@ -602,11 +598,11 @@ struct LogView: View {
                     Spacer()
                     Image(systemName: "list.bullet.rectangle")
                         .font(.largeTitle).foregroundStyle(.tertiary)
-                    Text(onlyAttempts ? "Keine Durchbrüche" : "Noch nichts protokolliert")
+                    Text(onlyAttempts ? L("Keine Durchbrüche") : L("Noch nichts protokolliert"))
                         .font(.headline).foregroundStyle(.secondary)
                     Text(onlyAttempts
-                         ? "Durch eine gesetzte Sperre ist bisher nichts gekommen."
-                         : "Sobald du etwas sperrst oder freigibst, steht es hier mit Zeitpunkt.")
+                         ? L("Durch eine gesetzte Sperre ist bisher nichts gekommen.")
+                         : L("Sobald du etwas sperrst oder freigibst, steht es hier mit Zeitpunkt."))
                         .font(.caption).foregroundStyle(.tertiary)
                     Spacer()
                 }
@@ -614,7 +610,7 @@ struct LogView: View {
             } else {
                 List(events) { event in
                     EventRow(event: event,
-                             name: model.catalog.serviceOrUnknown(id: event.serviceId).name)
+                             name: model.catalog.serviceOrUnknown(id: event.serviceId).displayName)
                 }
                 .listStyle(.inset)
             }
@@ -646,7 +642,7 @@ struct EventRow: View {
                             .foregroundStyle(event.kind.tint)
                     }
                 }
-                if let detail = event.detail {
+                if let detail = event.displayDetail {
                     Text(detail).font(.caption2).foregroundStyle(.tertiary)
                 }
             }
@@ -674,10 +670,8 @@ struct ProfilesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Profile").font(.title2).fontWeight(.semibold)
-                    Text("Eine Stufe sperrt Klassen, keine einzelnen Dienste — so greift sie "
-                       + "auch für Dienste, die es beim Anlegen noch nicht gab. Was eine Stufe "
-                       + "sperrt, legst du hier fest.")
+                    Text(L("Profile")).font(.title2).fontWeight(.semibold)
+                    Text(L("Eine Stufe sperrt Klassen, keine einzelnen Dienste — so greift sie auch für Dienste, die es beim Anlegen noch nicht gab. Was eine Stufe sperrt, legst du hier fest."))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -686,17 +680,18 @@ struct ProfilesView: View {
                     warning
                 }
 
+                automation
+
                 ForEach(PolicyTier.allCases.filter(\.isEditable), id: \.self) { tier in
                     TierEditor(tier: tier, model: model)
                 }
 
-                Card(title: "Immer geschützt",
-                     subtitle: "Diese Klasse lässt sich keiner Stufe zuordnen — sonst könnte "
-                             + "sich das Werkzeug selbst oder das VPN aussperren.") {
+                Card(title: L("Immer geschützt"),
+                     subtitle: L("Diese Klasse lässt sich keiner Stufe zuordnen — sonst könnte sich das Werkzeug selbst oder das VPN aussperren.")) {
                     HStack(spacing: 6) {
                         Image(systemName: ServiceClass.essential.symbol)
                         Text(ServiceClass.essential.displayName).fontWeight(.medium)
-                        Pill(text: "hart geschützt", tint: .green, symbol: "checkmark")
+                        Pill(text: L("hart geschützt"), tint: .green, symbol: "checkmark")
                     }
                 }
             }
@@ -704,15 +699,42 @@ struct ProfilesView: View {
         }
     }
 
+    /// Wer gerade bestimmt: das Netz oder eine Hand. Mit dem Weg zurück.
+    private var automation: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: model.isManualTier ? "hand.raised.fill" : "wand.and.stars")
+                .foregroundStyle(model.isManualTier ? Color.orange : .secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(model.isManualTier
+                     ? L("Von Hand gewählt: %@", model.policyState.manualTier?.displayName ?? "")
+                     : L("Automatisch: Das Netz bestimmt die Stufe"))
+                    .fontWeight(.medium)
+                Text(model.isManualTier
+                     ? L("Gilt in jedem teuren oder begrenzten Netz, bis du zur Automatik zurückkehrst. In freien Netzen wird nie gesperrt.")
+                     : L("Frei → Aus · Begrenzt → Sparsam · Teuer → Urlaubsmodus. Ein unbekanntes Netz sperrt nichts, bis du es einstufst."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            if model.isManualTier {
+                Button(L("Zurück zur Automatik")) { model.followNetwork() }
+                    .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Palette.cardBackground))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.cardBorder, lineWidth: 1))
+    }
+
     private var warning: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.leak)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Eine höhere Stufe sperrt weniger als eine niedrigere")
+                Text(L("Eine höhere Stufe sperrt weniger als eine niedrigere"))
                     .fontWeight(.medium)
-                Text("Betroffen: "
-                   + model.policyState.inconsistentTiers.map(\.displayName).joined(separator: ", ")
-                   + ". Die Budget-Automatik stuft nur nach oben — sie würde dabei lockern.")
+                Text(L("Betroffen: %@. Die Budget-Automatik stuft nur nach oben — sie würde dabei lockern.",
+                       model.policyState.inconsistentTiers.map(\.displayName).joined(separator: ", ")))
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -738,22 +760,22 @@ struct TierEditor: View {
                     Image(systemName: tier.symbol)
                         .foregroundStyle(tier.tint)
                     Text(tier.displayName).font(.headline)
-                    if isActive { Pill(text: "aktiv", tint: tier.tint, filled: true) }
-                    if isCustom { Pill(text: "angepasst", tint: .secondary, symbol: "pencil") }
+                    if isActive { Pill(text: L("aktiv"), tint: tier.tint, filled: true) }
+                    if isCustom { Pill(text: L("angepasst"), tint: .secondary, symbol: "pencil") }
                     Spacer()
                     if isCustom {
-                        Button("Voreinstellung") { model.resetTier(tier) }
+                        Button(L("Voreinstellung")) { model.resetTier(tier) }
                             .controlSize(.small)
                     }
-                    Button(isActive ? "Aktiv" : "Aktivieren") { model.setTier(tier) }
+                    Button(isActive ? L("Aktiv") : L("Aktivieren")) { model.setTier(tier) }
                         .controlSize(.small)
                         .disabled(isActive)
                 }
 
                 Text(classes.isEmpty
-                     ? "Sperrt nichts."
-                     : "Sperrt: " + ServiceClass.allCases.filter { classes.contains($0) }
-                        .map(\.displayName).joined(separator: ", "))
+                     ? L("Sperrt nichts.")
+                     : L("Sperrt: %@", ServiceClass.allCases.filter { classes.contains($0) }
+                        .map(\.displayName).joined(separator: ", ")))
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -809,10 +831,12 @@ struct ServicesView: View {
 
     private var grouped: [(ServiceClass, [Service])] {
         let filtered = model.catalog.services.filter {
-            search.isEmpty || $0.name.localizedCaseInsensitiveContains(search)
+            search.isEmpty || $0.displayName.localizedCaseInsensitiveContains(search)
+                || $0.name.localizedCaseInsensitiveContains(search)
         }
         return ServiceClass.allCases.compactMap { cls in
-            let list = filtered.filter { $0.serviceClass == cls }.sorted { $0.name < $1.name }
+            let list = filtered.filter { $0.serviceClass == cls }
+                .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
             return list.isEmpty ? nil : (cls, list)
         }
     }
@@ -820,9 +844,8 @@ struct ServicesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Dienste").font(.title2).fontWeight(.semibold)
-                Text("Der Katalog: was das Werkzeug kennt und womit es den Dienst stoppt. "
-                   + "Einzelne Dienste lassen sich dauerhaft vom Profil ausnehmen.")
+                Text(L("Dienste")).font(.title2).fontWeight(.semibold)
+                Text(L("Der Katalog: was das Werkzeug kennt und womit es den Dienst stoppt. Einzelne Dienste lassen sich dauerhaft vom Profil ausnehmen."))
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -846,17 +869,17 @@ struct ServicesView: View {
                 }
             }
             .listStyle(.inset)
-            .searchable(text: $search, prompt: "Dienst suchen")
+            .searchable(text: $search, prompt: L("Dienst suchen"))
         }
     }
 
     private func tierNote(for cls: ServiceClass) -> String {
-        guard cls.isBlockable else { return "nie sperrbar" }
+        guard cls.isBlockable else { return L("nie sperrbar") }
         let state = model.policyState
         guard let first = PolicyTier.allCases.sorted()
             .first(where: { state.blockedClasses(for: $0).contains(cls) })
-        else { return "nur manuell" }
-        return "ab „\(first.displayName)“"
+        else { return L("nur manuell") }
+        return L("ab „%@“", first.displayName)
     }
 }
 
@@ -874,24 +897,24 @@ struct ServiceDetailRow: View {
                     if isBlocked {
                         Image(systemName: "lock.fill").font(.caption2).foregroundStyle(.red)
                     }
-                    Text(service.name).fontWeight(.medium)
+                    Text(service.displayName).fontWeight(.medium)
                     if state.alwaysAllow.contains(service.id) {
-                        Pill(text: "immer erlaubt", tint: .green, symbol: "checkmark")
+                        Pill(text: L("immer erlaubt"), tint: .green, symbol: "checkmark")
                     }
                     if state.alwaysBlock.contains(service.id) {
-                        Pill(text: "immer gesperrt", tint: .red, symbol: "lock.fill")
+                        Pill(text: L("immer gesperrt"), tint: .red, symbol: "lock.fill")
                     }
                 }
                 if let lever = service.levers.first {
                     HStack(spacing: 4) {
-                        Text(leverName(lever.kind))
+                        Text(lever.kind.displayName)
                         if let note = lever.kind.bluntnessNote {
                             Text("· \(note)")
                         }
                     }
                     .font(.caption2).foregroundStyle(.secondary)
                 }
-                if let note = service.note {
+                if let note = service.displayNote {
                     Text(note).font(.caption2).foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -901,20 +924,20 @@ struct ServiceDetailRow: View {
 
             if service.isBlockable {
                 Menu {
-                    Button(isBlocked ? "Freigeben" : "Jetzt sperren") {
+                    Button(isBlocked ? L("Freigeben") : L("Jetzt sperren")) {
                         if isBlocked { model.unblock(service.id) } else { model.block(service) }
                     }
                     Divider()
-                    Button("Immer erlauben") { model.setException(service, allow: true) }
-                    Button("Immer sperren") { model.setException(service, allow: false) }
-                    Button("Ausnahme entfernen") { model.setException(service, allow: nil) }
+                    Button(L("Immer erlauben")) { model.setException(service, allow: true) }
+                    Button(L("Immer sperren")) { model.setException(service, allow: false) }
+                    Button(L("Ausnahme entfernen")) { model.setException(service, allow: nil) }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton).fixedSize()
             } else {
                 Image(systemName: "lock.shield").foregroundStyle(.tertiary)
-                    .help("Systemkritisch — bewusst nicht sperrbar")
+                    .help(L("Systemkritisch — bewusst nicht sperrbar"))
             }
         }
         .padding(.vertical, 3)
@@ -929,10 +952,8 @@ struct NetworksView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Netze").font(.title2).fontWeight(.semibold)
-                Text("Netze werden an der MAC-Adresse ihres Routers wiedererkannt — dafür "
-                   + "braucht die App keine Ortungsdienste. Die Einstufung entscheidet, ob "
-                   + "gesperrt wird und ob der Verbrauch aufs Budget zählt.")
+                Text(L("Netze")).font(.title2).fontWeight(.semibold)
+                Text(L("Netze werden an der MAC-Adresse ihres Routers wiedererkannt — dafür braucht die App keine Ortungsdienste. Die Einstufung entscheidet, ob gesperrt wird und ob der Verbrauch aufs Budget zählt."))
                     .font(.caption).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -956,12 +977,12 @@ struct NetworksView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 5) {
-                            Text(record.identity.label).fontWeight(.medium)
-                            if isCurrent { Pill(text: "verbunden", tint: .accentColor) }
+                            Text(record.identity.displayLabel).fontWeight(.medium)
+                            if isCurrent { Pill(text: L("verbunden"), tint: .accentColor) }
                         }
                         Text("\(record.identity.interface) · "
                            + "\(record.identity.gatewayMAC ?? record.identity.gatewayIP) · "
-                           + "zuletzt \(relativeAgo(record.lastSeen))")
+                           + L("zuletzt %@", relativeAgo(record.lastSeen)))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
 
@@ -990,14 +1011,14 @@ struct BudgetView: View {
     @ObservedObject var model: AppModel
     @State private var volumeText = "5 GB"
     @State private var endDate = Date().addingTimeInterval(14 * 86400)
-    @State private var label = "Reise"
+    @State private var label = L("Reise")
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Budget").font(.title2).fontWeight(.semibold)
-                    Text("Nur Verbrauch in Netzen der Klasse „teuer“ oder „begrenzt“ zählt.")
+                    Text(L("Budget")).font(.title2).fontWeight(.semibold)
+                    Text(L("Nur Verbrauch in Netzen der Klasse „teuer“ oder „begrenzt“ zählt."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
 
@@ -1013,58 +1034,56 @@ struct BudgetView: View {
                             UsageBar(fraction: 1 - status.remainingFraction,
                                      tint: status.light.tint, height: 8)
                             HStack(spacing: 10) {
-                                StatTile(title: "Übrig",
+                                StatTile(title: L("Übrig"),
                                          value: ByteFormat.short(status.remainingBytes),
-                                         note: "von \(ByteFormat.short(status.budget.totalBytes))",
+                                         note: L("von %@", ByteFormat.short(status.budget.totalBytes)),
                                          tint: status.light.tint)
-                                StatTile(title: "Restlaufzeit",
+                                StatTile(title: L("Restlaufzeit"),
                                          value: String(format: "%.1f", status.remainingDays),
-                                         note: "Tage")
-                                StatTile(title: "Tagesbudget",
+                                         note: L("Tage"))
+                                StatTile(title: L("Tagesbudget"),
                                          value: ByteFormat.short(status.dailyAllowance),
-                                         note: "heute \(ByteFormat.short(status.usedTodayBytes))")
-                                StatTile(title: "Hochrechnung",
+                                         note: L("heute %@", ByteFormat.short(status.usedTodayBytes)))
+                                StatTile(title: L("Hochrechnung"),
                                          value: ByteFormat.short(status.projectedToday),
-                                         note: "für heute",
+                                         note: L("für heute"),
                                          tint: status.light.tint)
                             }
-                            Button("Budget löschen", role: .destructive) { model.saveBudget(nil) }
+                            Button(L("Budget löschen"), role: .destructive) { model.saveBudget(nil) }
                                 .controlSize(.small)
                         }
                     }
                 }
 
-                Card(title: "Neues Budget",
-                     subtitle: "Volumen und Enddatum des Tarifs — daraus ergibt sich das Tagesbudget.") {
+                Card(title: L("Neues Budget"),
+                     subtitle: L("Volumen und Enddatum des Tarifs — daraus ergibt sich das Tagesbudget.")) {
                     // Beschriftung über dem Feld statt daneben: Nebeneinander
                     // bricht „Name" in einem schmalen Fenster mitten im Wort um.
                     HStack(alignment: .bottom, spacing: 18) {
-                        field("Volumen") {
+                        field(L("Volumen")) {
                             TextField("5 GB", text: $volumeText).frame(width: 92)
                         }
-                        field("Bis") {
-                            DatePicker("", selection: $endDate, displayedComponents: .date)
+                        field(L("Bis")) {
+                            DatePicker("", selection: $endDate, in: Date()..., displayedComponents: .date)
                                 .labelsHidden()
                         }
-                        field("Name") {
-                            TextField("Reise", text: $label).frame(width: 130)
+                        field(L("Name")) {
+                            TextField(L("Reise"), text: $label).frame(width: 130)
                         }
                         Spacer()
-                        Button("Setzen") { save() }
+                        Button(L("Setzen")) { save() }
                             .buttonStyle(.borderedProminent)
-                            .disabled(ByteFormat.parse(volumeText) == nil)
+                            .disabled(!volumeIsValid)
                     }
-                    if ByteFormat.parse(volumeText) == nil {
-                        Text("Volumen nicht verstanden — z. B. „5 GB“ oder „500 MB“")
+                    if !volumeIsValid {
+                        Text(L("Volumen nicht verstanden — z. B. „5 GB“ oder „500 MB“"))
                             .font(.caption).foregroundStyle(.red)
                     }
                 }
 
-                Card(title: "Automatik",
-                     subtitle: "Stuft hoch, wenn die Hochrechnung über dem Tagesbudget liegt "
-                             + "oder weniger als 15 % übrig sind. Zurückgestuft wird nur von "
-                             + "Hand — sonst pendelt das Profil.") {
-                    Toggle("Bei knappem Budget automatisch hochstufen", isOn: Binding(
+                Card(title: L("Automatik"),
+                     subtitle: L("Stuft hoch, wenn die Hochrechnung über dem Tagesbudget liegt oder weniger als 15 % übrig sind. Zurückgestuft wird nur von Hand — sonst pendelt das Profil.")) {
+                    Toggle(L("Bei knappem Budget automatisch hochstufen"), isOn: Binding(
                         get: { model.policyState.autoEscalate },
                         set: { model.setAutoEscalate($0) }))
                         .toggleStyle(.switch)
@@ -1073,6 +1092,8 @@ struct BudgetView: View {
             .padding(16)
         }
     }
+
+    private var volumeIsValid: Bool { (ByteFormat.parse(volumeText) ?? 0) > 0 }
 
     private func field<Content: View>(_ title: String,
                                       @ViewBuilder content: () -> Content) -> some View {
@@ -1083,8 +1104,16 @@ struct BudgetView: View {
     }
 
     private func save() {
-        guard let bytes = ByteFormat.parse(volumeText) else { return }
+        guard let bytes = ByteFormat.parse(volumeText), bytes > 0 else { return }
+        // „Bis 6. September" heißt: einschließlich des 6. Ohne das endete das
+        // Budget zur aktuellen Uhrzeit jenes Tages, und der letzte Reisetag
+        // bekäme nur ein halbes Tagesbudget.
+        let calendar = Calendar.current
+        let dayAfter = calendar.date(byAdding: .day, value: 1,
+                                     to: calendar.startOfDay(for: endDate)) ?? endDate
+        let trimmed = label.trimmingCharacters(in: .whitespaces)
         model.saveBudget(Budget(totalBytes: bytes, startsAt: Date(),
-                                endsAt: endDate, label: label))
+                                endsAt: dayAfter.addingTimeInterval(-1),
+                                label: trimmed.isEmpty ? L("Reise") : trimmed))
     }
 }

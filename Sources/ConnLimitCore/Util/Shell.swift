@@ -14,9 +14,9 @@ public enum ShellError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .launchFailed(let cmd, let err):
-            return "Konnte '\(cmd)' nicht starten: \(err.localizedDescription)"
+            return L("Konnte '%@' nicht starten: %@", cmd, err.localizedDescription)
         case .failed(let cmd, let status, let err):
-            return "'\(cmd)' fehlgeschlagen (Status \(status)): \(err)"
+            return L("'%@' fehlgeschlagen (Status %@): %@", cmd, status, err)
         }
     }
 }

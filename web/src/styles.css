@@ -177,6 +177,14 @@ h3 { font-size: 1.06rem; font-weight: 650; letter-spacing: -0.01em; }
 }
 .nav-links a:hover { color: var(--chalk); }
 @media (max-width: 860px) { .nav-links { display: none; } }
+@media (max-width: 560px) {
+  .nav-actions .nav-github { display: none; }
+  .nav-inner { gap: 12px; }
+  .nav-actions { gap: 10px; }
+}
+/* Auf dem Telefon bleibt der Laden-Knopf im Kopfbereich — die Leiste trägt
+   dort nur Name und Sprache, sonst wird es eng. */
+@media (max-width: 440px) { .nav-actions .btn { display: none; } }
 
 .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
 .brand-name { font-weight: 700; color: var(--chalk); letter-spacing: -0.02em; font-size: 1.02rem; }
@@ -184,7 +192,7 @@ h3 { font-size: 1.06rem; font-weight: 650; letter-spacing: -0.01em; }
 
 /* Hero ------------------------------------------------------------------- */
 
-.hero { padding: 68px 0 96px; }
+.hero { padding: 68px 0 96px; position: relative; isolation: isolate; overflow: hidden; }
 .hero-grid {
   display: grid; grid-template-columns: 1.02fr 0.98fr; gap: 56px; align-items: center;
 }
@@ -433,7 +441,9 @@ h3 { font-size: 1.06rem; font-weight: 650; letter-spacing: -0.01em; }
 
 /* Loslegen --------------------------------------------------------------- */
 
-.steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+/* So viele Spalten wie Schritte: Entfällt beim notarisierten Paket der
+   Umweg über das Kontextmenü, bliebe sonst eine leere Spalte stehen. */
+.steps-grid { display: grid; grid-template-columns: repeat(var(--steps, 3), 1fr); gap: 18px; }
 @media (max-width: 860px) { .steps-grid { grid-template-columns: 1fr; } }
 .install { padding: 22px; border-radius: var(--radius); border: 1px solid var(--line); background: rgba(11, 18, 32, 0.5); }
 .install-n { font-family: var(--mono); font-size: 0.72rem; color: var(--green); margin-bottom: 10px; }
@@ -554,7 +564,11 @@ footer { border-top: 1px solid var(--line-soft); padding: 44px 0 60px; }
 
 .hero-fineprint { margin-top: 12px; font-size: 0.78rem; color: var(--faint); }
 .nav-actions { display: flex; align-items: center; gap: 16px; }
-.nav-github { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500; }
+.nav-github {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500;
+}
+.nav-github svg { flex: none; }
 .nav-github:hover { color: var(--chalk); }
 .btn-sm { padding: 8px 16px; font-size: 0.86rem; }
 
@@ -562,3 +576,108 @@ footer { border-top: 1px solid var(--line-soft); padding: 44px 0 60px; }
   color: var(--muted); background: rgba(148, 176, 220, 0.08);
   padding: 2px 6px; border-radius: 5px; font-size: 0.78rem;
 }
+
+/* Sprachumschalter ------------------------------------------------------- */
+/* Wie auf mitsol.at: ein flacher Rahmen, zwei Segmente, das aktive hell
+   hinterlegt. Feste Breite je Segment, damit der Wechsel nichts verschiebt. */
+
+.lang-switch {
+  display: inline-flex; gap: 2px; padding: 3px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: rgba(148, 176, 220, 0.05);
+  flex: none;
+}
+.lang-switch button {
+  font: inherit; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+  width: 32px; padding: 5px 0; border: 0; border-radius: 7px;
+  background: transparent; color: var(--faint); cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.lang-switch button:hover { color: var(--chalk); }
+.lang-switch button.on {
+  background: rgba(247, 250, 252, 0.16); color: var(--chalk);
+  box-shadow: inset 0 0 0 1px rgba(247, 250, 252, 0.08);
+}
+
+/* Tastaturfokus: deutlich, aber nur für die Tastatur. */
+:where(a, button):focus-visible {
+  outline: 2px solid var(--green); outline-offset: 2px; border-radius: 8px;
+}
+
+/* Datenbudget als Leseanzeige ------------------------------------------- */
+/* Der Verlauf liegt über die volle Breite und wird nur freigelegt — so ist
+   die Spitze erst grün, dann orange, am Ende rot. Wie ein Tarif, der sich
+   leert. */
+
+.nav { --progress: 0; }
+.nav-budget {
+  position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+  background: linear-gradient(90deg, var(--green) 0%, var(--green) 45%, var(--amber) 75%, var(--red) 100%);
+  clip-path: inset(0 calc((1 - var(--progress)) * 100%) 0 0);
+  opacity: 0; transition: opacity 0.3s;
+  pointer-events: none;
+}
+.nav.stuck .nav-budget { opacity: 0.85; }
+
+/* Paketstrom im Kopfbereich ---------------------------------------------- */
+
+.packet-stream {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  opacity: 0.85;
+  /* Links unter dem Text gedämpft, damit die Überschrift lesbar bleibt. */
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.55) 30%, #000 55%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.55) 30%, #000 55%);
+}
+
+/* Neigung des Fenster-Nachbaus ------------------------------------------- */
+
+.hero-panel { perspective: 1400px; --rx: 0deg; --ry: 0deg; --gx: 50%; --gy: 50%; }
+.hero-panel .tilt {
+  position: relative;
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(.2,.8,.3,1);
+  will-change: transform;
+}
+.hero-panel.tilting .tilt { transition: transform 0.12s ease-out; }
+/* Ein Lichtreflex, der dem Zeiger folgt — das Glas des Fensters. */
+.hero-panel .tilt::after {
+  content: ''; position: absolute; inset: 0; border-radius: 16px; pointer-events: none;
+  background: radial-gradient(420px circle at var(--gx) var(--gy), rgba(247, 250, 252, 0.07), transparent 55%);
+  opacity: 0; transition: opacity 0.4s;
+}
+.hero-panel.tilting .tilt::after { opacity: 1; }
+
+/* Lichtkegel auf den Funktionskarten -------------------------------------- */
+
+.feature { --mx: 50%; --my: 0%; }
+.feature::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx) var(--my),
+    color-mix(in srgb, var(--glow, var(--green)) 13%, transparent), transparent 65%);
+  opacity: 0; transition: opacity 0.35s;
+}
+.feature:hover::after { opacity: 1; }
+.feature > * { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-panel .tilt { transform: none; }
+}
+
+/* Kleinkram ---------------------------------------------------------------- */
+
+.shot-note { margin-top: 6px; font-size: 0.78rem; color: var(--faint); }
+.table-scroll { overflow-x: auto; }
+@media (max-width: 640px) { .lever-table td:first-child { white-space: normal; } }
+/* Schmale Bildschirme: Der Verlauf je Zeile weicht, damit Zahl und
+   Sperrknopf Platz haben — die Zahl ist die Aussage, der Verlauf die Zugabe. */
+@media (max-width: 520px) {
+  .trow .spark { display: none; }
+  .row-btn { min-width: 0; padding: 5px 10px; }
+  .demo-stage { padding: 14px; }
+}
+
+/* `.lever-table td` setzt die gedämpfte Farbe und ist spezifischer als die
+   Akzentklassen — ohne diese Zeilen stünde „root“ grau statt orange da. */
+.lever-table td.accent-amber { color: var(--amber); font-weight: 600; }
+.lever-table td.accent-green { color: var(--green); font-weight: 600; }

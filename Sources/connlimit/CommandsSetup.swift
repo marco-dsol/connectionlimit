@@ -11,10 +11,10 @@ func cmdNet(_ args: Args) throws {
     case "list":
         let (current, _) = try app.refreshNetwork()
         let networks = try app.store.allNetworks()
-        print(Term.bold("Bekannte Netze"))
+        print(Term.bold(L("Bekannte Netze")))
         print()
-        print(Term.dim(Term.pad("", 3) + Term.pad("ID", 18) + Term.pad("NAME", 26)
-                     + Term.pad("KLASSE", 12) + "ZULETZT"))
+        print(Term.dim(Term.pad("", 3) + Term.pad("ID", 18) + Term.pad(L("NAME"), 26)
+                     + Term.pad(L("KLASSE"), 12) + L("ZULETZT")))
         for n in networks {
             let marker = n.identity.id == current.id ? Term.green("▸") : " "
             let cls = n.networkClass
@@ -27,32 +27,35 @@ func cmdNet(_ args: Args) throws {
                 }
             }()
             print(Term.pad(" \(marker) ", 3) + Term.pad(Term.dim(n.identity.id), 18)
-                + Term.pad(n.identity.label, 26) + Term.pad(colored, 12)
-                + Term.dim(shortDate(n.lastSeen)))
+                + Term.fit(n.identity.displayLabel, 26) + Term.pad(colored, 12)
+                + Term.dim(DisplayTime.dayAndTime(n.lastSeen)))
         }
         print()
-        print(Term.dim("connlimit net set <id|current> <frei|teuer|begrenzt>"))
-        print(Term.dim("connlimit net name <id|current> \"Hotel WLAN\""))
+        print(Term.dim(L("connlimit net set <id|current> <frei|teuer|begrenzt>")))
+        print(Term.dim(L("connlimit net name <id|current> \"Hotel WLAN\"")))
 
     case "set":
         guard let target = args[2], let clsText = args[3],
               let cls = Parse.networkClass(clsText) else {
-            throw CLIError.usage("connlimit net set <id|current> <frei|teuer|begrenzt>")
+            throw CLIError.usage(L("connlimit net set <id|current> <frei|teuer|begrenzt>"))
         }
         let id = try resolveNetworkId(target, app: app)
         try app.store.setNetworkClass(cls, for: id)
-        print(Term.green("✓ ") + "Netz \(id) ist jetzt " + Term.bold(cls.displayName))
+        print(Term.green("✓ ") + L("Netz %@ ist jetzt %@", id, Term.bold(cls.displayName)))
         if cls.countsAgainstBudget {
-            print(Term.dim("   Verbrauch in diesem Netz zählt gegen das Budget."))
+            print(Term.dim("   " + L("Verbrauch in diesem Netz zählt gegen das Budget.")))
+        }
+        if app.store.policyState.manualTier == nil {
+            print(Term.dim("   " + L("Die App wendet das passende Profil beim nächsten Abgleich an (spätestens nach 30 s).")))
         }
 
     case "name":
         guard let target = args[2], let label = args[3] else {
-            throw CLIError.usage("connlimit net name <id|current> \"Name\"")
+            throw CLIError.usage(L("connlimit net name <id|current> \"Name\""))
         }
         let id = try resolveNetworkId(target, app: app)
         try app.store.setNetworkLabel(label, for: id)
-        print(Term.green("✓ ") + "Netz \(id) heißt jetzt \(label)")
+        print(Term.green("✓ ") + L("Netz %@ heißt jetzt %@", id, label))
 
     default:
         throw CLIError.usage("connlimit net [list|set|name]")
@@ -66,12 +69,6 @@ private func resolveNetworkId(_ target: String, app: App) throws -> String {
     return target
 }
 
-private func shortDate(_ date: Date) -> String {
-    let f = DateFormatter()
-    f.dateFormat = "dd.MM. HH:mm"
-    return f.string(from: date)
-}
-
 // MARK: - budget
 
 func cmdBudget(_ args: Args) throws {
@@ -81,48 +78,62 @@ func cmdBudget(_ args: Args) throws {
     switch sub {
     case nil, "show":
         guard let status = try app.budget.status() else {
-            print(Term.dim("Kein Budget gesetzt."))
+            print(Term.dim(L("Kein Budget gesetzt.")))
             print(Term.dim("connlimit budget set 5GB --until 2026-09-06"))
             return
         }
-        print(Term.bold(status.budget.label))
-        print("  Volumen      \(ByteFormat.short(status.budget.totalBytes))")
-        print("  Verbraucht   \(ByteFormat.short(status.usedBytes))")
-        print("  Übrig        " + Term.bold(ByteFormat.short(status.remainingBytes))
-            + Term.dim("  (\(Int(status.remainingFraction * 100)) %)"))
-        print("  Restlaufzeit \(String(format: "%.1f", status.remainingDays)) Tage")
-        print("  Tagesbudget  \(ByteFormat.short(status.dailyAllowance))")
-        print("  Heute        \(ByteFormat.short(status.usedTodayBytes))"
-            + Term.dim("  Hochrechnung \(ByteFormat.short(status.projectedToday))"))
+        // Beschriftungen gleich breit, damit die Werte in jeder Sprache eine
+        // Spalte bilden.
+        let rows: [(String, String)] = [
+            (L("Volumen"), ByteFormat.short(status.budget.totalBytes)),
+            (L("Verbraucht"), ByteFormat.short(status.usedBytes)),
+            (L("Übrig"), Term.bold(ByteFormat.short(status.remainingBytes))
+                + Term.dim("  (\(Int(status.remainingFraction * 100)) %)")),
+            (L("Restlaufzeit"), L("%@ Tage", String(format: "%.1f", status.remainingDays))),
+            (L("Tagesbudget"), ByteFormat.short(status.dailyAllowance)),
+            (L("Heute"), ByteFormat.short(status.usedTodayBytes)
+                + Term.dim("  " + L("Hochrechnung %@", ByteFormat.short(status.projectedToday)))),
+        ]
         let lightText: String
         switch status.light {
-        case .green:  lightText = Term.green("● im Rahmen")
-        case .yellow: lightText = Term.yellow("● leicht drüber")
-        case .red:    lightText = Term.red("● zu schnell")
+        case .green:  lightText = Term.green("● " + status.light.text)
+        case .yellow: lightText = Term.yellow("● " + status.light.text)
+        case .red:    lightText = Term.red("● " + status.light.text)
         }
-        print("  Status       \(lightText)")
+        let width = (rows.map(\.0.count) + [L("Status").count]).max()! + 2
+        print(Term.bold(status.budget.label))
+        for (label, value) in rows { print("  " + Term.pad(label, width) + value) }
+        print("  " + Term.pad(L("Status"), width) + lightText)
         print()
-        print(Term.dim("Nur Traffic in teuren oder begrenzten Netzen zählt."))
+        print(Term.dim(L("Nur Traffic in teuren oder begrenzten Netzen zählt.")))
 
     case "set":
-        guard let volumeText = args[2], let bytes = ByteFormat.parse(volumeText) else {
-            throw CLIError.usage("connlimit budget set <5GB> --until <2026-09-06> [--label \"Italien\"]")
+        guard let volumeText = args[2], let bytes = ByteFormat.parse(volumeText), bytes > 0 else {
+            throw CLIError.usage(L("connlimit budget set <5GB> --until <2026-09-06> [--label \"Italien\"]"))
         }
-        guard let untilText = args.value("until"), let until = Parse.date(untilText) else {
-            throw CLIError.usage("--until <YYYY-MM-DD> fehlt oder ist unlesbar")
+        guard let untilText = args.value("until"), let untilDay = Parse.date(untilText) else {
+            throw CLIError.usage(L("--until <YYYY-MM-DD> fehlt oder ist unlesbar"))
         }
+        // Ein reines Datum meint den ganzen Tag, nicht dessen Mitternacht —
+        // sonst fehlte der letzte Reisetag im Budget.
+        let until = untilText.contains(":") ? untilDay
+            : (Calendar.current.date(byAdding: .day, value: 1, to: untilDay) ?? untilDay)
+                .addingTimeInterval(-1)
         let from = args.value("from").flatMap(Parse.date) ?? Date()
+        guard until > from else {
+            throw CLIError.usage(L("Das Enddatum liegt vor dem Beginn."))
+        }
         let budget = Budget(totalBytes: bytes, startsAt: from, endsAt: until,
-                            label: args.value("label") ?? "Reise")
+                            label: args.value("label") ?? L("Reise"))
         try app.store.saveBudget(budget)
-        print(Term.green("✓ ") + "Budget: \(ByteFormat.short(bytes)) bis \(untilText)")
+        print(Term.green("✓ ") + L("Budget: %@ bis %@", ByteFormat.short(bytes), untilText))
         if let status = try app.budget.status() {
-            print(Term.dim("   Tagesbudget: \(ByteFormat.short(status.dailyAllowance))"))
+            print(Term.dim("   " + L("Tagesbudget: %@", ByteFormat.short(status.dailyAllowance))))
         }
 
     case "clear":
         try app.store.saveBudget(nil)
-        print(Term.green("✓ ") + "Budget gelöscht")
+        print(Term.green("✓ ") + L("Budget gelöscht"))
 
     default:
         throw CLIError.usage("connlimit budget [show|set|clear]")
@@ -135,19 +146,19 @@ func cmdExcept(_ args: Args) throws {
     let app = try App()
     guard let sub = args[1] else {
         let state = app.store.policyState
-        print(Term.bold("Ausnahmen"))
-        print("  Immer erlaubt:  " + (state.alwaysAllow.isEmpty
+        print(Term.bold(L("Ausnahmen")))
+        print("  " + Term.pad(L("Immer erlaubt: "), 17) + (state.alwaysAllow.isEmpty
             ? Term.dim("—") : state.alwaysAllow.sorted().joined(separator: ", ")))
-        print("  Immer gesperrt: " + (state.alwaysBlock.isEmpty
+        print("  " + Term.pad(L("Immer gesperrt: "), 17) + (state.alwaysBlock.isEmpty
             ? Term.dim("—") : state.alwaysBlock.sorted().joined(separator: ", ")))
         print()
-        print(Term.dim("connlimit except allow <dienst>   — auch im Urlaubsmodus erlauben"))
-        print(Term.dim("connlimit except block <dienst>   — immer sperren"))
-        print(Term.dim("connlimit except clear <dienst>   — Ausnahme entfernen"))
+        print(Term.dim(L("connlimit except allow <dienst>   — auch im Urlaubsmodus erlauben")))
+        print(Term.dim(L("connlimit except block <dienst>   — immer sperren")))
+        print(Term.dim(L("connlimit except clear <dienst>   — Ausnahme entfernen")))
         return
     }
     guard let query = args[2] else {
-        throw CLIError.usage("connlimit except <allow|block|clear> <dienst>")
+        throw CLIError.usage(L("connlimit except <allow|block|clear> <dienst>"))
     }
     let service = try app.service(matching: query)
     var state = app.store.policyState
@@ -156,20 +167,20 @@ func cmdExcept(_ args: Args) throws {
     case "allow":
         state.alwaysAllow.insert(service.id)
         state.alwaysBlock.remove(service.id)
-        print(Term.green("✓ ") + "\(service.name) bleibt immer erlaubt")
+        print(Term.green("✓ ") + L("%@ bleibt immer erlaubt", service.displayName))
     case "block":
         guard service.isBlockable else {
-            throw CLIError.usage("\(service.name) ist systemkritisch und kann nicht gesperrt werden.")
+            throw CLIError.usage(L("%@ ist systemkritisch und kann nicht gesperrt werden.", service.displayName))
         }
         state.alwaysBlock.insert(service.id)
         state.alwaysAllow.remove(service.id)
-        print(Term.green("✓ ") + "\(service.name) ist immer gesperrt")
+        print(Term.green("✓ ") + L("%@ ist immer gesperrt", service.displayName))
     case "clear":
         state.alwaysAllow.remove(service.id)
         state.alwaysBlock.remove(service.id)
-        print(Term.green("✓ ") + "Ausnahme für \(service.name) entfernt")
+        print(Term.green("✓ ") + L("Ausnahme für %@ entfernt", service.displayName))
     default:
-        throw CLIError.usage("connlimit except <allow|block|clear> <dienst>")
+        throw CLIError.usage(L("connlimit except <allow|block|clear> <dienst>"))
     }
     try app.store.savePolicyState(state)
 }
@@ -185,9 +196,9 @@ func cmdRun(_ args: Args) throws {
     }
 
     let app = try App(config: config)
-    print(Term.bold("connlimit läuft")
-        + Term.dim(config.readOnly ? "  (nur messen, keine Sperren)" : "")
-        + Term.dim("  ·  Strg-C zum Beenden"))
+    print(Term.bold(L("connlimit läuft"))
+        + Term.dim(config.readOnly ? "  " + L("(nur messen, keine Sperren)") : "")
+        + Term.dim("  ·  " + L("Strg-C zum Beenden")))
 
     installShutdownHandler(agent: app.agent)
     try app.agent.run()
@@ -207,7 +218,7 @@ private func installShutdownHandler(agent: Agent) {
 // MARK: - doctor
 
 func cmdDoctor(_ args: Args) throws {
-    print(Term.bold("Systemprüfung"))
+    print(Term.bold(L("Systemprüfung")))
     print()
 
     func check(_ label: String, _ ok: Bool, _ detail: String) {
@@ -216,56 +227,82 @@ func cmdDoctor(_ args: Args) throws {
     }
 
     let nettopOK = FileManager.default.isExecutableFile(atPath: "/usr/bin/nettop")
-    check("nettop", nettopOK, nettopOK ? "Messung verfügbar" : "fehlt — ohne geht nichts")
+    check("nettop", nettopOK, nettopOK ? L("Messung verfügbar") : L("fehlt — ohne geht nichts"))
 
     let app = try App()
     let (identity, cls) = try app.refreshNetwork()
-    check("Netzerkennung", !identity.isOffline,
-          identity.isOffline ? "offline" : "\(identity.label) [\(cls.displayName)]")
+    check(L("Netzerkennung"), !identity.isOffline,
+          identity.isOffline ? L("offline") : "\(identity.displayLabel) [\(cls.displayName)]")
     check("Gateway-MAC", identity.gatewayMAC != nil,
-          identity.gatewayMAC ?? "nicht ermittelbar — Netz-ID weniger stabil")
+          identity.gatewayMAC ?? L("nicht ermittelbar — Netz-ID weniger stabil"))
 
-    check("Datenbank", true, Store.defaultPath)
+    check(L("Datenbank"), true, Store.defaultPath)
 
     check("root", Shell.isRoot,
-          Shell.isRoot ? "launchd- und PF-Hebel verfügbar"
-                       : "ohne sudo nur der Hebel 'App einfrieren'")
+          Shell.isRoot ? L("launchd- und PF-Hebel verfügbar")
+                       : L("ohne sudo nur der Hebel 'App einfrieren'"))
 
     check("PF-Anchor", PFAnchor.isInstalled,
-          PFAnchor.isInstalled ? "installiert"
-                               : "nicht installiert — 'sudo connlimit install-pf' für Domain-Sperren")
+          PFAnchor.isInstalled ? L("installiert")
+                               : L("nicht installiert — 'sudo connlimit install-pf' für Domain-Sperren"))
 
     let running = ProcessLookup.running().count
-    check("Prozessliste", running > 0, "\(running) Prozesse sichtbar")
+    check(L("Prozessliste"), running > 0, L("%@ Prozesse sichtbar", running))
 
     let receipts = try app.store.openReceipts()
-    check("Offene Sperren", receipts.isEmpty,
-          receipts.isEmpty ? "keine" : "\(receipts.count) — 'connlimit status' zeigt sie")
+    check(L("Offene Sperren"), receipts.isEmpty,
+          receipts.isEmpty ? L("keine") : L("%@ — 'connlimit status' zeigt sie", receipts.count))
+
+    check(L("Sprache"), true, L10n.language.nativeName
+          + Term.dim("  ·  connlimit lang <de|en|auto>"))
 
     print()
-    print(Term.dim("Was welcher Hebel wirklich tut, steht in der README."))
+    print(Term.dim(L("Was welcher Hebel wirklich tut, steht in der README.")))
 }
 
 // MARK: - PF-Installation
 
 func cmdInstallPF(_ args: Args) throws {
     guard Shell.isRoot else {
-        throw CLIError.usage("Braucht root: sudo connlimit install-pf")
+        throw CLIError.usage(L("Braucht root: %@", "sudo connlimit install-pf"))
     }
     guard !PFAnchor.isInstalled else {
-        print(Term.dim("PF-Anchor ist bereits installiert."))
+        print(Term.dim(L("PF-Anchor ist bereits installiert.")))
         return
     }
-    print("Fügt \(PFAnchor.anchorLine) zu /etc/pf.conf hinzu.")
-    print(Term.dim("Eine Sicherung wird unter /etc/pf.conf.connlimit-backup abgelegt."))
+    print(L("Fügt %@ zu /etc/pf.conf hinzu.", PFAnchor.anchorLine))
+    print(Term.dim(L("Eine Sicherung wird unter /etc/pf.conf.connlimit-backup abgelegt.")))
     try PFAnchor.install()
-    print(Term.green("✓ ") + "PF-Anchor installiert und Regelsatz neu geladen")
+    print(Term.green("✓ ") + L("PF-Anchor installiert und Regelsatz neu geladen"))
 }
 
 func cmdUninstallPF(_ args: Args) throws {
     guard Shell.isRoot else {
-        throw CLIError.usage("Braucht root: sudo connlimit uninstall-pf")
+        throw CLIError.usage(L("Braucht root: %@", "sudo connlimit uninstall-pf"))
     }
     try PFAnchor.uninstall()
-    print(Term.green("✓ ") + "PF-Anchor entfernt, alle Regeln geleert")
+    print(Term.green("✓ ") + L("PF-Anchor entfernt, alle Regeln geleert"))
+}
+
+// MARK: - lang
+
+/// `connlimit lang [de|en|auto]` — dieselbe Einstellung wie im Menü der App.
+func cmdLang(_ args: Args) throws {
+    guard let arg = args[1]?.lowercased() else {
+        let preference = L10n.storedPreference
+        print(L("Sprache: %@", L10n.language.nativeName)
+            + (preference == .system ? Term.dim("  (" + L("wie macOS") + ")") : ""))
+        print(Term.dim("connlimit lang <de|en|auto>"))
+        return
+    }
+    let preference: LanguagePreference
+    switch arg {
+    case "de", "deutsch", "german":  preference = .de
+    case "en", "englisch", "english": preference = .en
+    case "auto", "system":            preference = .system
+    default: throw CLIError.usage("connlimit lang <de|en|auto>")
+    }
+    L10n.setPreference(preference)
+    print(Term.green("✓ ") + L("Sprache: %@", L10n.language.nativeName)
+        + Term.dim("  ·  " + L("gilt für App und Terminal")))
 }

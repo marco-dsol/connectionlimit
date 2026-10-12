@@ -10,15 +10,15 @@ public enum EnforcementError: Error, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notBlockable(let name):
-            return "'\(name)' ist als systemkritisch eingestuft und kann nicht gesperrt werden."
+            return L("'%@' ist als systemkritisch eingestuft und kann nicht gesperrt werden.", L(name))
         case .noApplicableLever(let name):
-            return "Für '\(name)' greift gerade kein Hebel (läuft der Dienst überhaupt?)."
+            return L("Für '%@' greift gerade kein Hebel (läuft der Dienst überhaupt?).", L(name))
         case .needsRoot(let lever):
-            return "Der Hebel '\(lever.rawValue)' braucht root — bitte mit sudo starten."
+            return L("Der Hebel '%@' braucht root — bitte mit sudo starten.", lever.displayName)
         case .leverFailed(let lever, let msg):
-            return "Hebel '\(lever.rawValue)' fehlgeschlagen: \(msg)"
+            return L("Hebel '%@' fehlgeschlagen: %@", lever.displayName, msg)
         case .pfAnchorMissing:
-            return "PF-Anchor ist nicht installiert. Einmalig 'sudo connlimit install-pf' ausführen."
+            return L("PF-Anchor ist nicht installiert. Einmalig 'sudo connlimit install-pf' ausführen.")
         }
     }
 }

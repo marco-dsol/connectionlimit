@@ -34,17 +34,17 @@ public final class BudgetTracker {
 
         if status.remainingFraction < 0.05, current < .emergency {
             return Escalation(newTier: .emergency,
-                              reason: "Weniger als 5 % des Volumens übrig — Notfallbetrieb.")
+                              reason: L("Weniger als 5 % des Volumens übrig — Notfallbetrieb."))
         }
         if status.remainingFraction < 0.15, current < .emergency {
             return Escalation(newTier: .emergency,
-                              reason: "Weniger als 15 % des Volumens übrig.")
+                              reason: L("Weniger als 15 % des Volumens übrig."))
         }
         if status.light == .red, current < .vacation {
             return Escalation(newTier: .vacation,
-                              reason: "Hochrechnung liegt über dem Tagesbudget "
-                                    + "(\(ByteFormat.short(status.projectedToday)) statt "
-                                    + "\(ByteFormat.short(status.dailyAllowance))).")
+                              reason: L("Hochrechnung liegt über dem Tagesbudget (%@ statt %@).",
+                                        ByteFormat.short(status.projectedToday),
+                                        ByteFormat.short(status.dailyAllowance)))
         }
         return nil
     }

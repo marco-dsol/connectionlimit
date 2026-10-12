@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { drift, useTicker } from '../hooks/useTicker'
 import { bytes, rate } from '../lib/format'
+import { useLang } from '../i18n'
 
 /// Nachbau des Menüleisten-Fensters. Kein Bild, sondern echtes Markup: Die
 /// Zahlen laufen, die Balken wachsen, die Zustände wechseln — wer die Seite
@@ -8,10 +9,14 @@ import { bytes, rate } from '../lib/format'
 
 export type Phase = 0 | 1 | 2 | 3
 
+export type RowId = 'chrome' | 'icloud' | 'onedrive' | 'update' | 'signal'
+export type RowClass = 'browser' | 'sync' | 'update' | 'messaging'
+
+/// Namen und Klassen stehen im Wörterbuch — „iCloud Fotos“ heißt auf
+/// Englisch anders, und die Klassen sollen wie in der App heißen.
 export interface Row {
-  id: string
-  name: string
-  cls: string
+  id: RowId
+  cls: RowClass
   glyph: string
   total: number
   /** Byte/s in Ruhe bzw. unter Last. 0 heißt: still. */
@@ -20,11 +25,11 @@ export interface Row {
 }
 
 export const ROWS: Row[] = [
-  { id: 'chrome', name: 'Google Chrome', cls: 'Browser', glyph: '🌐', total: 4.1e8, idle: 900, busy: 2.4e6 },
-  { id: 'icloud', name: 'iCloud Fotos', cls: 'Cloud-Sync', glyph: '↻', total: 1.8e8, idle: 0, busy: 1.1e6 },
-  { id: 'onedrive', name: 'OneDrive', cls: 'Cloud-Sync', glyph: '↻', total: 6.4e7, idle: 0, busy: 7.2e5 },
-  { id: 'update', name: 'macOS Update', cls: 'Updates', glyph: '↓', total: 2.9e7, idle: 0, busy: 3.1e6 },
-  { id: 'signal', name: 'Signal', cls: 'Messenger', glyph: '💬', total: 2.1e6, idle: 220, busy: 4.8e4 },
+  { id: 'chrome', cls: 'browser', glyph: '🌐', total: 4.1e8, idle: 900, busy: 2.4e6 },
+  { id: 'icloud', cls: 'sync', glyph: '↻', total: 1.8e8, idle: 0, busy: 1.1e6 },
+  { id: 'onedrive', cls: 'sync', glyph: '↻', total: 6.4e7, idle: 0, busy: 7.2e5 },
+  { id: 'update', cls: 'update', glyph: '↓', total: 2.9e7, idle: 0, busy: 3.1e6 },
+  { id: 'signal', cls: 'messaging', glyph: '💬', total: 2.1e6, idle: 220, busy: 4.8e4 },
 ]
 
 /// Was in welcher Phase gesperrt ist. Ab Phase 2 greift der Urlaubsmodus:
@@ -36,6 +41,8 @@ export function blockedIn(phase: Phase, id: string): boolean {
 }
 
 export function AppPanel({ phase }: { phase: Phase }) {
+  const { t } = useLang()
+  const w = t.terms
   const tick = useTicker(1100)
   const [rates, setRates] = useState<Record<string, number>>(() =>
     Object.fromEntries(ROWS.map((r) => [r.id, r.idle])),
@@ -71,7 +78,6 @@ export function AppPanel({ phase }: { phase: Phase }) {
 
   const total = useMemo(() => Object.values(rates).reduce((a, b) => a + b, 0), [rates])
   const blockedRows = ROWS.filter((r) => blockedIn(phase, r.id))
-  const tiers = ['Aus', 'Sparsam', 'Urlaub', 'Notfall']
   const activeTier = phase === 0 ? 0 : 2
 
   return (
@@ -80,15 +86,15 @@ export function AppPanel({ phase }: { phase: Phase }) {
         <div>
           <div className="panel-net">
             <span aria-hidden>{phase === 0 ? '📶' : '⚠️'}</span>
-            {phase === 0 ? 'Zuhause WLAN' : 'iPhone von Marco'}
+            {phase === 0 ? w.netHome : w.netHotspot}
           </div>
           <div className="panel-sub">
             {total > 0 && <span className="dot" aria-hidden />}
-            Heute {bytes(phase === 0 ? 3.1e8 : 4.4e8)} · {total > 0 ? rate(total) : 'gerade still'}
+            {w.today(bytes(phase === 0 ? 3.1e8 : 4.4e8))} · {total > 0 ? rate(total) : w.quiet}
           </div>
         </div>
         <span className={phase === 0 ? 'pill pill-green' : 'pill pill-red'}>
-          {phase === 0 ? 'frei' : 'teuer'}
+          {phase === 0 ? w.free : w.metered}
         </span>
       </div>
 
@@ -97,19 +103,19 @@ export function AppPanel({ phase }: { phase: Phase }) {
           <span aria-hidden>{phase >= 3 ? '⚠' : 'ℹ'}</span>
           <span>
             {phase >= 3
-              ? 'Trotz Sperre aktiv: OneDrive — der Hebel greift nicht vollständig.'
-              : 'Dieses Netz ist als teuer eingestuft. Der Urlaubsmodus greift automatisch.'}
+              ? t.panel.calloutLeak
+              : t.panel.calloutNet}
           </span>
         </div>
       )}
 
       <div className="panel-section">
         <div className="panel-label">
-          <span>Profil</span>
-          {phase >= 1 && <span className="pill pill-amber">automatisch</span>}
+          <span>{t.panel.profile}</span>
+          {phase >= 1 && <span className="pill pill-amber">{t.panel.automatic}</span>}
         </div>
         <div className="seg">
-          {tiers.map((name, index) => (
+          {w.tiers.map((name, index) => (
             <button
               key={name}
               type="button"
@@ -122,16 +128,16 @@ export function AppPanel({ phase }: { phase: Phase }) {
         </div>
         <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>
           {activeTier === 0
-            ? 'keine Sperren'
-            : 'Updates, Backup, Telemetrie, Medien, Cloud-Sync'}
+            ? w.tierNone
+            : w.tierVacation}
         </div>
       </div>
 
       <div className="panel-section">
         <div className="panel-label">
-          <span>Dienste</span>
+          <span>{t.panel.services}</span>
           <span style={{ color: 'var(--green)' }}>
-            {Object.values(rates).filter((r) => r > 0).length} aktiv
+            {w.active(Object.values(rates).filter((r) => r > 0).length)}
           </span>
         </div>
         {ROWS.map((row) => {
@@ -145,8 +151,8 @@ export function AppPanel({ phase }: { phase: Phase }) {
               <span className="svc-ico" aria-hidden>{blocked ? '🔒' : row.glyph}</span>
               <div className="svc-body">
                 <div className="svc-name">
-                  {row.name}
-                  {leak && <span className="pill pill-amber">trotz Sperre</span>}
+                  {w.rows[row.id]}
+                  {leak && <span className="pill pill-amber">{w.despiteBlock}</span>}
                 </div>
                 <div className="bar">
                   <i style={{ width: `${Math.min(100, (row.total / 4.1e8) * 100)}%` }} />
@@ -159,7 +165,7 @@ export function AppPanel({ phase }: { phase: Phase }) {
               </div>
               <div className="svc-num">
                 <b>{bytes(row.total)}</b>
-                <span>{value > 0 ? rate(value) : blocked ? 'gesperrt' : 'still'}</span>
+                <span>{value > 0 ? rate(value) : blocked ? w.blocked : w.idle}</span>
               </div>
             </div>
           )
@@ -169,12 +175,12 @@ export function AppPanel({ phase }: { phase: Phase }) {
       {blockedRows.length > 0 && (
         <div className="panel-section">
           <div className="panel-label">
-            <span>Gesperrt ({blockedRows.length})</span>
-            <span>Alles freigeben</span>
+            <span>{t.panel.blockedHead(blockedRows.length)}</span>
+            <span>{t.panel.releaseAll}</span>
           </div>
           <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {blockedRows.map((row) => (
-              <span className="pill pill-red" key={row.id}>🔒 {row.name}</span>
+              <span className="pill pill-red" key={row.id}>🔒 {w.rows[row.id]}</span>
             ))}
           </div>
         </div>
