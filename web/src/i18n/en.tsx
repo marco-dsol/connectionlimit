@@ -364,7 +364,7 @@ export const en: Dict = {
     cta: 'Watch the video',
     length: '1:06',
     title: 'ConnectionLimit on video',
-    ai: 'Voice-over and music generated with AI (ElevenLabs).',
+    ai: 'Voice-over and music are AI-created.',
     fallback: 'Your browser cannot play this video.',
   },
 
@@ -430,7 +430,7 @@ export const en: Dict = {
         </p>
         <p>
           <b>Built with AI.</b> ConnectionLimit — the app, this website and the video — was created with the help of
-          AI. The voice-over and music in the video are generated with AI (ElevenLabs).
+          AI. The voice-over and music in the video are AI-created.
         </p>
         <p>
           <b>Trademarks.</b> ConnectionLimit is an independent project and is not affiliated with Apple or any other

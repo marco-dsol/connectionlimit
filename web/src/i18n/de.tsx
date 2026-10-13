@@ -396,7 +396,7 @@ export const de = {
     cta: 'Video ansehen',
     length: '1:06',
     title: 'ConnectionLimit im Video',
-    ai: 'Sprecher und Musik mit KI erzeugt (ElevenLabs).',
+    ai: 'Sprecher und Musik sind KI-generiert.',
     fallback: 'Dein Browser kann dieses Video nicht abspielen.',
   },
 
@@ -464,7 +464,7 @@ export const de = {
         </p>
         <p>
           <b>Mit KI entwickelt.</b> ConnectionLimit — die App, diese Website und das Video — ist mit Unterstützung
-          von KI entstanden. Sprecherstimme und Musik im Video sind mit KI erzeugt (ElevenLabs).
+          von KI entstanden. Sprecherstimme und Musik im Video sind KI-generiert.
         </p>
         <p>
           <b>Marken.</b> ConnectionLimit ist ein unabhängiges Projekt und steht in keiner Verbindung zu Apple oder den
