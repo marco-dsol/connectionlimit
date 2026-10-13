@@ -37,7 +37,7 @@ export function Start() {
                 {t.download.requires} · {t.download.architectures} · {size}
               </p>
             </div>
-            <a className="btn btn-primary btn-lg" href={DOWNLOAD.file} download>
+            <a className="btn btn-primary btn-lg" href={DOWNLOAD.file} download data-umami-event="download" data-umami-event-from="start">
               <span aria-hidden>↓</span> {s.download(size)}
             </a>
           </div>

@@ -8,6 +8,7 @@ import { Honest } from './components/Honest'
 import { Start } from './components/Start'
 import { Footer } from './components/Footer'
 import { Legal } from './components/Legal'
+import { Consent } from './components/Consent'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
       <Start />
       <Footer />
       <Legal />
+      <Consent />
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import { Modal } from './Modal'
 import { useLang } from '../i18n'
+import { clearHash } from '../lib/hash'
 
 /// Impressum, Haftungsausschluss und Datenschutz in einem Fenster, erreichbar
 /// über den Anker in der Adresse (`#impressum`, `#haftung`, `#datenschutz`).
@@ -31,18 +32,9 @@ export function Legal() {
     if (part) document.getElementById(`legal-${part}`)?.scrollIntoView({ block: 'start' })
   }, [part])
 
-  // Den Anker beim Schließen entfernen, sonst öffnet ein zweiter Klick auf
-  // denselben Link nichts: Die Adresse hätte sich nicht geändert.
   const close = useCallback(() => {
     setPart(null)
-    if (!partFromHash()) return
-    try {
-      const url = new URL(window.location.href)
-      url.hash = ''
-      window.history.replaceState(window.history.state, '', url)
-    } catch {
-      /* Adresse lässt sich nicht ändern (file://) — das Fenster ist trotzdem zu */
-    }
+    if (partFromHash()) clearHash()
   }, [])
 
   // Innerhalb des Fensters springen, ohne für jeden Sprung einen Eintrag im

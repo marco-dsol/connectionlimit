@@ -46,7 +46,6 @@ export const en: Dict = {
     lead:
       'macOS shows no per-app data usage and has no Low Data Mode like iOS. ConnectionLimit closes both gaps as far as that is possible without special Apple entitlements — and says plainly where the limit runs.',
     cta: 'Download for macOS',
-    ctaDemo: 'See the overview',
     version: 'Version',
     meta: [
       { strong: 'No account', text: 'no sign-up, no service behind it' },
@@ -368,6 +367,15 @@ export const en: Dict = {
     fallback: 'Your browser cannot play this video.',
   },
 
+  stats: {
+    title: 'May I count your visit?',
+    text: 'I’d like to collect anonymous visitor statistics – with Umami on my own server, without cookies and without sharing anything with third parties.',
+    privacy: 'Privacy policy',
+    deny: 'No thanks',
+    accept: 'Yes, sure',
+    settings: 'Statistics settings',
+  },
+
   legal: {
     title: 'Legal',
     close: 'Close',
@@ -457,8 +465,18 @@ export const en: Dict = {
           (<code className="mono">~/Library/Application Support/at.mitsol.connectionlimit</code>) and never leave it.
         </p>
         <p>
-          <b>No cookies, no analytics.</b> This website sets no cookies, shows no ads and does not count visits.
-          Fonts and video are served from our own server; no third-party content is embedded.
+          <b>No cookies, no ads.</b> This website sets no cookies and shows no ads. Fonts, video and analytics are
+          served from our own server; no third-party content is embedded.
+        </p>
+        <p>
+          <b>Anonymous visitor statistics (only with your consent).</b> If you agree, we use{' '}
+          <a href="https://umami.is">Umami</a> to count page views anonymously, along with how often the video is
+          played and the app downloaded. Umami runs on our own server (umami.dsol.at, Hetzner, Germany), sets no
+          cookies, stores no full IP addresses and builds no profiles across websites. It records the page visited,
+          referring page, browser, operating system, device type, screen size, language and approximate country. The
+          legal basis is your consent (Art. 6(1)(a) GDPR), which you can withdraw at any time under{' '}
+          <a href="#statistik">Statistics settings</a>. Without your consent, the analytics script is not loaded at
+          all.
         </p>
         <p>
           <b>Server logs.</b> When you visit, the web server processes technically necessary data — IP address,
@@ -466,8 +484,9 @@ export const en: Dict = {
           GDPR). The server is located in the European Union, at Hetzner Online GmbH in Nuremberg, Germany.
         </p>
         <p>
-          <b>Storage in your browser.</b> The site only remembers your language choice in your browser
-          (localStorage). It never leaves your device and can be deleted at any time in your browser settings.
+          <b>Storage in your browser.</b> The site only remembers your language and your analytics choice in your
+          browser (localStorage). Neither leaves your device, and both can be deleted at any time in your browser
+          settings.
         </p>
         <p>
           <b>Download and source code on GitHub.</b> The app package and the source code are hosted on GitHub. If

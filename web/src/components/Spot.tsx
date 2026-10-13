@@ -25,7 +25,7 @@ export function Spot() {
 
   return (
     <>
-      <button type="button" className="btn btn-play" onClick={show}>
+      <button type="button" className="btn btn-primary btn-play" onClick={show} data-umami-event="video" data-umami-event-lang={lang}>
         <span className="play-icon" aria-hidden>
           <svg viewBox="0 0 12 12" width="11" height="11">
             <path d="M3 1.6v8.8a.6.6 0 0 0 .9.5l7-4.4a.6.6 0 0 0 0-1L3.9 1.1a.6.6 0 0 0-.9.5z" fill="currentColor" />

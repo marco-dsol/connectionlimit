@@ -75,7 +75,6 @@ export const de = {
     lead:
       'macOS zeigt keinen Verbrauch pro App und hat keinen Low-Data-Modus wie iOS. ConnectionLimit schließt beide Lücken, soweit das ohne Apple-Sonderrechte geht — und sagt klar, wo die Grenze verläuft.',
     cta: 'Für macOS laden',
-    ctaDemo: 'Zur Übersicht',
     version: 'Version',
     meta: [
       { strong: 'Kein Konto', text: 'keine Anmeldung, kein Dienst dahinter' },
@@ -400,6 +399,15 @@ export const de = {
     fallback: 'Dein Browser kann dieses Video nicht abspielen.',
   },
 
+  stats: {
+    title: 'Darf ich mitzählen?',
+    text: 'Ich würde gern anonyme Besuchsstatistiken erheben – mit Umami auf meinem eigenen Server, ohne Cookies und ohne Weitergabe an Dritte.',
+    privacy: 'Datenschutz',
+    deny: 'Nein danke',
+    accept: 'Ja, gern',
+    settings: 'Statistik-Einstellungen',
+  },
+
   legal: {
     title: 'Rechtliches',
     close: 'Schließen',
@@ -492,9 +500,18 @@ export const de = {
           und verlassen ihn nicht.
         </p>
         <p>
-          <b>Keine Cookies, keine Statistik.</b> Diese Website setzt keine Cookies, zeigt keine Werbung und zählt
-          keine Besuche. Schriften und Video kommen vom eigenen Server; Inhalte von Drittanbietern werden nicht
-          eingebunden.
+          <b>Keine Cookies, keine Werbung.</b> Diese Website setzt keine Cookies und zeigt keine Werbung. Schriften,
+          Video und Statistik kommen vom eigenen Server; Inhalte von Drittanbietern werden nicht eingebunden.
+        </p>
+        <p>
+          <b>Anonyme Besucherstatistik (nur mit Zustimmung).</b> Wenn du zustimmst, zählen wir mit{' '}
+          <a href="https://umami.is">Umami</a> anonym Seitenaufrufe und wie oft das Video gestartet und die App
+          geladen wird. Umami läuft auf unserem eigenen Server (umami.dsol.at, Hetzner, Deutschland), setzt keine
+          Cookies, speichert keine vollständigen IP-Adressen und erstellt keine Profile über Websites hinweg.
+          Erfasst werden aufgerufene Seite, Herkunftsseite, Browser, Betriebssystem, Gerätetyp, Bildschirmgröße,
+          Sprache und das grobe Herkunftsland. Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO),
+          die du jederzeit unter <a href="#statistik">Statistik-Einstellungen</a> widerrufen kannst. Ohne Zustimmung
+          wird das Statistik-Skript gar nicht geladen.
         </p>
         <p>
           <b>Server-Protokolle.</b> Beim Aufruf verarbeitet der Webserver technisch notwendige Daten — IP-Adresse,
@@ -503,8 +520,9 @@ export const de = {
           Nürnberg, Deutschland.
         </p>
         <p>
-          <b>Speicherung im Browser.</b> Die Seite merkt sich nur deine Sprachwahl im Browser (localStorage). Sie
-          verlässt dein Gerät nicht und lässt sich jederzeit über die Browser-Einstellungen löschen.
+          <b>Speicherung im Browser.</b> Die Seite merkt sich nur deine Sprachwahl und deine Entscheidung zur
+          Statistik im Browser (localStorage). Beides verlässt dein Gerät nicht und lässt sich jederzeit über die
+          Browser-Einstellungen löschen.
         </p>
         <p>
           <b>Download und Quelltext auf GitHub.</b> Programmpaket und Quelltext liegen auf GitHub. Folgst du einem

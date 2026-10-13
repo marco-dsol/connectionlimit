@@ -53,7 +53,7 @@ export function Nav() {
             </a>
           )}
           <LangSwitch />
-          <a className="btn btn-primary btn-sm" href={DOWNLOAD.file} download>
+          <a className="btn btn-primary btn-sm" href={DOWNLOAD.file} download data-umami-event="download" data-umami-event-from="nav">
             <span aria-hidden>↓</span> {t.nav.download}
           </a>
         </div>

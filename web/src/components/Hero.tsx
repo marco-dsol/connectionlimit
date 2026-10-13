@@ -64,11 +64,10 @@ export function Hero() {
           <p className="lead">{t.hero.lead}</p>
 
           <div className="hero-actions">
-            <a className="btn btn-primary" href={DOWNLOAD.file} download>
+            <Spot />
+            <a className="btn btn-ghost" href={DOWNLOAD.file} download data-umami-event="download" data-umami-event-from="hero">
               <span aria-hidden>↓</span> {t.hero.cta}
             </a>
-            <Spot />
-            <a className="btn btn-ghost" href="#demo">{t.hero.ctaDemo}</a>
           </div>
           <p className="hero-fineprint">
             {t.hero.version} {DOWNLOAD.version} · {downloadSize(t.decimal)} · {t.download.requires} ·

@@ -1,6 +1,7 @@
 import { Logo } from './Logo'
 import { LEGAL_PARTS } from './Legal'
 import { COMPANY } from '../lib/company'
+import { statsEnabled } from '../lib/stats'
 import { useLang } from '../i18n'
 
 export function Footer() {
@@ -27,6 +28,7 @@ export function Footer() {
           {LEGAL_PARTS.map((id) => (
             <a key={id} href={`#${id}`}>{t.legal.links[id]}</a>
           ))}
+          {statsEnabled && <a href="#statistik">{t.stats.settings}</a>}
         </nav>
       </div>
     </footer>
