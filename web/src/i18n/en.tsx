@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react'
 import type { Dict } from './de'
+import { COMPANY, LEGAL_UPDATED, PROJECT_EMAIL } from '../lib/company'
+import { GITHUB_URL } from '../lib/download'
 
 /// Das englische Wörterbuch. Fachbegriffe wie in der englischen App-Fassung:
 /// metered, Frugal, Vacation, active despite block, lever.
@@ -19,7 +22,7 @@ export const en: Dict = {
   },
 
   nav: {
-    demo: 'Live demo',
+    demo: 'Overview',
     features: 'Features',
     window: 'The window',
     terminal: 'Terminal',
@@ -43,7 +46,7 @@ export const en: Dict = {
     lead:
       'macOS shows no per-app data usage and has no Low Data Mode like iOS. ConnectionLimit closes both gaps as far as that is possible without special Apple entitlements — and says plainly where the limit runs.',
     cta: 'Download for macOS',
-    ctaDemo: 'See the live demo',
+    ctaDemo: 'See the overview',
     version: 'Version',
     meta: [
       { strong: 'No account', text: 'no sign-up, no service behind it' },
@@ -99,10 +102,10 @@ export const en: Dict = {
   },
 
   demo: {
-    eyebrow: 'Live demo',
+    eyebrow: 'Overview',
     title: 'Four steps: how it really goes on holiday',
     lead:
-      'No video, no picture: the interface itself, rebuilt and in motion. You can block things by hand here too — then you take over.',
+      'The app’s interface, rebuilt and in motion — not a screenshot. You can block things by hand here too — then you take over.',
     steps: [
       {
         title: 'At home: everything runs',
@@ -352,5 +355,140 @@ export const en: Dict = {
   footer: {
     tagline: 'See who is burning through your data — and cut them off.',
     made: 'Built for hotspots, roaming and hotel tariffs.',
+    project: 'A project by',
+    dsolUrl: `${COMPANY.dsol}/en/`,
+    madeWith: 'Made with ❤️ and AI in Tyrol by',
+  },
+
+  spot: {
+    cta: 'Watch the video',
+    length: '1:06',
+    title: 'ConnectionLimit on video',
+    ai: 'Voice-over and music generated with AI (ElevenLabs).',
+    fallback: 'Your browser cannot play this video.',
+  },
+
+  legal: {
+    title: 'Legal',
+    close: 'Close',
+    links: { impressum: 'Legal notice', haftung: 'Disclaimer', datenschutz: 'Privacy' },
+    updated: `Last updated: ${LEGAL_UPDATED.en}`,
+    impressum: (
+      <>
+        <p>
+          ConnectionLimit is a project of {COMPANY.name} ({COMPANY.short}) under the{' '}
+          <a href={`${COMPANY.dsol}/en/`}>DSOL</a> brand (Digital Solutions). This website is operated by{' '}
+          {COMPANY.name}, which is responsible for its content.
+        </p>
+        <p>
+          <b>{COMPANY.name}</b><br />
+          Owner: {COMPANY.owner}<br />
+          Software development & IT consulting<br />
+          {COMPANY.street}, {COMPANY.city}, Tyrol, Austria
+        </p>
+        <p>
+          Email: <a href={`mailto:${PROJECT_EMAIL}`}>{PROJECT_EMAIL}</a> · <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a><br />
+          Phone: <a href={COMPANY.phoneHref}>{COMPANY.phone}</a><br />
+          Web: <a href={`${COMPANY.dsol}/en/`}>www.dsol.at</a> · <a href={COMPANY.mitsol}>www.mitsol.at</a>
+        </p>
+        <p>
+          VAT ID: {COMPANY.uid}<br />
+          Company register number: {COMPANY.register}<br />
+          Member of the Tyrolean Chamber of Commerce, <a href={COMPANY.wko}>WKÖ company listing</a><br />
+          Supervisory authority: Bezirkshauptmannschaft Innsbruck (district authority)<br />
+          Applicable regulations: Austrian Trade Regulation Act (Gewerbeordnung), available at{' '}
+          <a href="https://www.ris.bka.gv.at">www.ris.bka.gv.at</a>
+        </p>
+        <p>
+          Disclosure under § 25 of the Austrian Media Act: the media owner is {COMPANY.name}. This website provides
+          information about the ConnectionLimit software.
+        </p>
+        <p>
+          Bugs and suggestions for the app are welcome as an <a href={`${GITHUB_URL}/issues`}>issue on GitHub</a> or
+          at <a href={`mailto:${PROJECT_EMAIL}`}>{PROJECT_EMAIL}</a>. Please send complaints to <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>.
+        </p>
+      </>
+    ) as ReactNode,
+    haftung: (
+      <>
+        <p>
+          <b>Software without warranty.</b> ConnectionLimit is free and open source and is provided as is under the{' '}
+          <a href={`${GITHUB_URL}/blob/main/LICENSE`}>MIT License</a> — without any warranty of function,
+          freedom from defects or fitness for a particular purpose. The app intervenes in running programs and
+          system services and can set rules in the macOS packet filter firewall; you use it at your own risk. To the
+          extent permitted by law, we are not liable for damage or costs arising from its use — such as paused
+          services, delayed syncing or data used despite a block.
+        </p>
+        <p>
+          <b>Measurements are estimates.</b> Usage figures are based on samples from{' '}
+          <code className="mono">nettop</code> and are not billing-accurate. Only your mobile carrier’s bill counts.
+        </p>
+        <p>
+          <b>Content of this website.</b> The content has been prepared with care, but we cannot guarantee that it
+          is accurate, complete or up to date. The operators of linked external websites are solely responsible for
+          their content.
+        </p>
+        <p>
+          <b>Built with AI.</b> ConnectionLimit — the app, this website and the video — was created with the help of
+          AI. The voice-over and music in the video are generated with AI (ElevenLabs).
+        </p>
+        <p>
+          <b>Trademarks.</b> ConnectionLimit is an independent project and is not affiliated with Apple or any other
+          provider mentioned. macOS, iCloud and Time Machine are trademarks of Apple Inc.; OneDrive, Outlook,
+          Dropbox, Google Chrome, Signal and all other names mentioned belong to their respective owners and are used
+          for identification only.
+        </p>
+        <p>
+          <b>Copyright.</b> The source code is licensed under the MIT License and may be used freely within its
+          terms. All other content of this website — text, graphics and video — is protected by Austrian copyright
+          law. The Inter and JetBrains Mono typefaces are licensed under the SIL Open Font License.
+        </p>
+      </>
+    ) as ReactNode,
+    datenschutz: (
+      <>
+        <p>
+          The controller is {COMPANY.name}, {COMPANY.owner}, {COMPANY.street}, {COMPANY.city}, Austria,{' '}
+          <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>.
+        </p>
+        <p>
+          <b>The app collects nothing.</b> ConnectionLimit runs entirely on your Mac: no account, no telemetry, no
+          connection to our servers. Measurements, recognised networks and the log are kept in a database on your Mac
+          (<code className="mono">~/Library/Application Support/at.mitsol.connectionlimit</code>) and never leave it.
+        </p>
+        <p>
+          <b>No cookies, no analytics.</b> This website sets no cookies, shows no ads and does not count visits.
+          Fonts and video are served from our own server; no third-party content is embedded.
+        </p>
+        <p>
+          <b>Server logs.</b> When you visit, the web server processes technically necessary data — IP address,
+          time, requested address and browser identifier — to deliver the site and keep it secure (Art. 6(1)(f)
+          GDPR). The server is located in the European Union, at Hetzner Online GmbH in Nuremberg, Germany.
+        </p>
+        <p>
+          <b>Storage in your browser.</b> The site only remembers your language choice in your browser
+          (localStorage). It never leaves your device and can be deleted at any time in your browser settings.
+        </p>
+        <p>
+          <b>Download and source code on GitHub.</b> The app package and the source code are hosted on GitHub. If
+          you follow one of these links, your browser connects to GitHub, Inc. (USA) and your IP address is
+          transmitted there. GitHub’s{' '}
+          <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">
+            privacy statement
+          </a>{' '}
+          applies.
+        </p>
+        <p>
+          <b>Contact by email.</b> If you write to us, we store your message and address to handle your request and
+          delete them after six months at the latest, unless we are legally required to keep them.
+        </p>
+        <p>
+          <b>Your rights.</b> You have the right of access, rectification, erasure, restriction of processing, data
+          portability and objection. To exercise them, contact{' '}
+          <a href={`mailto:${COMPANY.email}`}>{COMPANY.email}</a>. You can lodge a complaint with the Austrian Data
+          Protection Authority (<a href="https://www.dsb.gv.at">www.dsb.gv.at</a>).
+        </p>
+      </>
+    ) as ReactNode,
   },
 }

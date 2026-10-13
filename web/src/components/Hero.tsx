@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { AppPanel, type Phase } from './AppPanel'
 import { PacketStream } from './PacketStream'
+import { Spot } from './Spot'
 import { DOWNLOAD, downloadSize } from '../lib/download'
 import { useLang } from '../i18n'
 
@@ -66,6 +67,7 @@ export function Hero() {
             <a className="btn btn-primary" href={DOWNLOAD.file} download>
               <span aria-hidden>↓</span> {t.hero.cta}
             </a>
+            <Spot />
             <a className="btn btn-ghost" href="#demo">{t.hero.ctaDemo}</a>
           </div>
           <p className="hero-fineprint">
