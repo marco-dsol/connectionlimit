@@ -6,7 +6,7 @@
 /// etwas zu bitten, das gar nicht zählt, wäre unehrlich.
 export const UMAMI = {
   script: 'https://umami.dsol.at/script.js',
-  websiteId: '',
+  websiteId: 'a8480648-a019-4883-aa50-5c50f0bb94c7',
   /// Nur auf der echten Adresse zählen, nicht beim Entwickeln oder in einer
   /// Vorschau.
   domains: 'connectionlimit.dsol.at',
